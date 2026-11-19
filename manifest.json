@@ -1,0 +1,11 @@
+{
+  "name": "SnapNote",
+  "short_name": "SnapNote",
+  "start_url": "/snapnote/",
+  "display": "standalone",
+  "background_color": "#0e0d16",
+  "theme_color": "#0e0d16",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }
+  ]
+}

@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnapNote — Idea Capture Space</title>
+<style>
+  :root {
+    --bg: #0e0d16;
+    --panel: #171625;
+    --panel2: #1e1d31;
+    --text: #eaeaf2;
+    --muted: #8b8aa3;
+    --accent: #6d4aff;
+    --red: #ff4d5e;
+    --yellow: #ffc93c;
+    --green: #3ddc84;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: radial-gradient(ellipse at 50% 120%, #1a1533 0%, var(--bg) 60%); color: var(--text); }
+
+  /* ---------- HEADER ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px;
+    background: rgba(14,13,22,.7); backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(109,74,255,.15);
+  }
+  header h1 { font-size: 17px; font-weight: 700; letter-spacing: .3px; }
+  header h1 span { color: var(--accent); }
+  #viewLabel { font-size: 12px; color: var(--muted); }
+
+
+
+
+   #globalSettingsBtn {
+    background: var(--panel2); color: var(--muted); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px; width: 34px; height: 34px; cursor: pointer; font-size: 16px;
+    transition: all .2s;
+  }
+  #globalSettingsBtn:hover { border-color: var(--accent); color: var(--text); transform: rotate(45deg); }
+
+  /* ---------- GLOBAL SETTINGS MENU ---------- */
+  #globalSettings {
+    position: fixed; inset: 0; z-index: 55;
+    background: rgba(8,7,14,.6); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+  }
+  #globalSettings.show { display: flex; }
+  #globalSettingsBox {
+    width: min(420px, 92vw);
+    background: linear-gradient(165deg, #211f38, var(--panel));
+    border: 1px solid rgba(109,74,255,.35);
+    border-radius: 20px; padding: 22px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    animation: capIn .3s cubic-bezier(.2,.8,.2,1);
+  }
+  #globalSettingsBox h2 { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+  #globalSettingsBox .subhead { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .colsRow { display: flex; gap: 10px; padding: 8px 4px 14px; }
+  .colBtn {
+    flex: 1; padding: 12px 0; border-radius: 12px; border: 1.5px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.04); color: var(--muted);
+    font-size: 14px; font-weight: 700; cursor: pointer; transition: all .15s;
+  }
+  .colBtn.sel { border-color: var(--accent); background: rgba(109,74,255,.18); color: var(--text); }
+  #globalClose {
+    margin-top: 8px; width: 100%; background: rgba(109,74,255,.15);
+    color: var(--text); border: 1px solid rgba(109,74,255,.4);
+    padding: 11px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  #globalClose:hover { background: rgba(109,74,255,.3); }
+
+
+
+
+
+
+
+
+
+
+
+  /* ---------- CATEGORY SPACE (static) ---------- */
+ #space {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity .3s;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-gutter: stable both-edges;   /* reserve scrollbar space symmetrically so centered content stays truly centered */
+     
+  }
+
+
+
+
+ #grid {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 3), 300px);
+
+
+
+
+
+
+    gap: 46px 56px;
+    padding: 150px 20px 120px;
+     margin: auto;   /* <-- keeps it centered when it fits, top-aligned when it overflows */
+  }
+
+  .cat {
+    position: relative;
+    width: 300px; height: 190px;
+    background: linear-gradient(160deg, var(--panel2), var(--panel));
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+    padding: 18px 18px 16px;
+    cursor: pointer;
+    transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s, border-color .2s;
+    animation: floatIn .7s cubic-bezier(.2,.8,.2,1) backwards;
+    -webkit-tap-highlight-color: rgba(109,74,255,.25);
+    outline: none;
+  }
+  @keyframes floatIn { from { opacity: 0; transform: translateY(40px); } }
+  .cat:hover,
+  .cat:focus-visible {
+    transform: translateY(-4px);
+    border-color: rgba(109,74,255,.5);
+    box-shadow: 0 18px 40px rgba(0,0,0,.5);
+  }
+  .cat:active { transform: translateY(-1px) scale(.985); }
+  .cat.dragging { opacity:.4; border-style:dashed; border-color:var(--accent); }
+  .cat:not(.addCard):active { cursor:grabbing; }
+  .cat .name { font-size: 16px; font-weight: 700; display:flex; align-items:center; gap:8px;}
+  .cat .emoji { font-size: 22px; }
+  .cat .sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* BOLD OUTLINE TOGGLE — thick border whose color borrows the card's glow:
+     red when hot (intensity scales with red count), yellow when warm,
+     bright white when calm. The .heat overlay already paints the glow
+     border, so we just thicken it and clear the plain border underneath. */
+  .cat.outlined { border: 3px solid rgba(240,240,250,.9); }
+  .cat.outlined.hot, .cat.outlined.warm { border-color: transparent; }
+  .cat.outlined.hot .heat, .cat.outlined.warm .heat { border-width: 3px; }
+  .cat.outlined.warm .heat { border-color: rgba(255,201,60,.75); }
+
+  .openCue {
+    position: absolute; right: 16px; bottom: 16px;
+    font-size: 11px; font-weight: 700; color: var(--accent);
+    opacity: 0; transform: translateX(-6px);
+    transition: opacity .25s, transform .25s;
+    pointer-events: none;
+  }
+  .cat:hover .openCue, .cat:focus-visible .openCue { opacity: 1; transform: translateX(0); }
+
+  .counts { display: flex; gap: 8px; margin-top: 16px; }
+  .pill {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 700;
+  }
+  .pill.r { background: rgba(255,77,94,.16); color: var(--red); box-shadow: 0 0 14px rgba(255,77,94,.25) inset; }
+  .pill.y { background: rgba(255,201,60,.13); color: var(--yellow); }
+  .pill.g { background: rgba(61,220,132,.12); color: var(--green); }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .pill.r .dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .pill.y .dot { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .pill.g .dot { background: var(--green); }
+
+  .cat .total { position:absolute; top:16px; right:16px; font-size:11px; color:var(--muted); font-weight:600; }
+  .heat {
+    position: absolute; inset: -2px; border-radius: 18px; pointer-events: none;
+    opacity: 0; transition: opacity .5s;
+  }
+  .cat.hot .heat {
+    opacity: 1;
+    border: 1px solid rgba(255,77,94, calc(.25 + .28*var(--glow,1)));
+    border-radius: 18px;
+    box-shadow:
+      0 0 calc(18px + 34px*var(--glow,1)) rgba(255,77,94, calc(.15 + .30*var(--glow,1))),
+      0 0 calc(45px + 85px*var(--glow,1)) rgba(255,77,94, calc(.08 + .14*var(--glow,1)));
+  }
+
+
+
+
+
+   /* NEW: .cat.outlined gets its own heat styling */
+  .cat.warm .heat { opacity: 1; box-shadow: 0 0 34px rgba(255,201,60,.25), 0 0 70px rgba(255,201,60,.08); border: 1px solid rgba(255,201,60,.4); border-radius: 18px; }
+  .heatbar { position:absolute; left:0; right:0; bottom:0; height:5px; border-radius:0 0 18px 18px; display:flex; overflow:hidden; }
+  .heatbar .seg { transition: flex-grow .4s; }
+
+/* ---------- ADD CATEGORY ---------- */
+  .addCard { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; border-style:dashed; }
+  .addCard .addPlus { font-size:34px; color:var(--accent); transition:transform .2s; }
+  .addCard .addLabel { font-size:13px; color:var(--muted); font-weight:600; }
+  .addCard:hover .addPlus { transform:scale(1.15); }
+  #newCat { position:fixed; inset:0; z-index:56; background:rgba(8,7,14,.72); backdrop-filter:blur(10px); display:none; align-items:center; justify-content:center; }
+  #newCat.show { display:flex; }
+  #newCatBox { width:min(380px,92vw); background:linear-gradient(165deg,#211f38,var(--panel)); border:1px solid rgba(109,74,255,.35); border-radius:20px; padding:22px; box-shadow:0 30px 80px rgba(0,0,0,.6); }
+  #newCatBox h2 { font-size:15px; color:var(--muted); font-weight:600; margin-bottom:12px; }
+  #newCatBox input { width:100%; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); color:var(--text); font-size:16px; padding:12px 14px; border-radius:12px; outline:none; margin-bottom:10px; }
+  #newCatBox input:focus { border-color:var(--accent); }
+  .newCatActions { display:flex; gap:10px; margin-top:6px; }
+  #newCatCancel { background: transparent; color: var(--muted); border:none; cursor:pointer; }
+  #newCatSave { flex:1; background:var(--accent); color:#fff; border:none; padding:12px; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; }
+  #newCatCancel { background: transparent; color: var(--muted); border: none; padding: 12px 8px; cursor: pointer; font-size: 14px; }
+  #newCatCancel:hover { color: var(--text); }
+
+  /* ---------- CATEGORY DETAIL VIEW ---------- */
+  #detail {
+    position: absolute; inset: 0; padding: 84px 24px 100px;
+    display: none; flex-direction: column; align-items: center;
+    opacity: 0; transition: opacity .3s;
+  }
+  #detail.show { display:flex; opacity:1; }
+  #detail .bar { width: min(760px, 100%); display:flex; align-items:center; gap:14px; margin-bottom:18px;}
+  #backBtn {
+    background: var(--panel2); color: var(--text); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px; padding: 8px 14px; cursor: pointer; font-size: 14px;
+  }
+  #backBtn:hover { border-color: var(--accent); }
+  #detailTitle { font-size: 20px; font-weight: 700; }
+  #detailCounts { display:flex; gap:8px; margin-left:auto; }
+
+  /* gear button in the detail bar */
+  #settingsBtn {
+    background: var(--panel2); color: var(--muted); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px; width: 38px; height: 38px; cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s;
+  }
+  #settingsBtn:hover { border-color: var(--accent); color: var(--text); transform: rotate(45deg); }
+ #addNoteBar {
+    width: min(340px, 100%);
+    background: var(--panel2); border: 1.5px dashed rgba(109,74,255,.45);
+    color: var(--accent); font-size: 14px; font-weight: 700;
+    padding: 12px 0; border-radius: 12px; cursor: pointer;
+    transition: all .15s; margin-bottom: 10px;
+  }
+  #addNoteBar:hover { border-style: solid; background: rgba(109,74,255,.12); transform: translateY(-2px); }
+
+  #notesList { width: min(760px, 100%); display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+  .note {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--panel); border: 1px solid rgba(255,255,255,.07);
+    border-radius: 12px; padding: 14px 16px;
+    animation: noteIn .35s cubic-bezier(.2,.8,.2,1) backwards;
+  }
+  @keyframes noteIn { from { opacity: 0; transform: translateY(12px);} }
+  .note .strip { width: 6px; height: 34px; border-radius: 4px; }
+  .note.p-r .strip { background: var(--red); box-shadow: 0 0 10px rgba(255,77,94,.6); }
+  .note.p-y .strip { background: var(--yellow); box-shadow: 0 0 10px rgba(255,201,60,.5); }
+  .note.p-g .strip { background: var(--green); box-shadow: 0 0 10px rgba(61,220,132,.5); }
+  .note .txt { font-size: 15px; flex: 1; }
+  .note .meta { font-size: 11px; color: var(--muted); }
+  .note .del { background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:4px 6px; border-radius:6px; }
+  .note .del:hover { color: var(--red); background: rgba(255,77,94,.1); }
+  .zoneHead {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 14px; padding: 12px 16px;
+    background: rgba(255,255,255,.03);
+    border: 1.5px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+    font-size: 14px; font-weight: 700;
+    letter-spacing: 1.5px; color: var(--muted);
+    cursor: default;
+  }
+  .zoneHead:first-child { margin-top: 0; }
+  .zoneHead .zdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .zoneHead.z-r .zdot { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .zoneHead.z-y .zdot { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .zoneHead.z-g .zdot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .zoneHead .zline { flex: 1; height: 1px; opacity: .3; }
+  .zoneHead.z-r .zline { background: var(--red); }
+  .zoneHead.z-y .zline { background: var(--yellow); }
+  .zoneHead.z-g .zline { background: var(--green); }
+
+
+
+
+     .zoneCol.dropTarget, .zoneHead.dropTarget { outline: 2px dashed rgba(109,74,255,.5); outline-offset: 6px; border-radius: 12px; }
+  .note.overBottom, .note.overTop { border-style: dashed; border-color: rgba(109,74,255,.8); }
+  
+  .zoneHead .zcount { font-size: 11px; letter-spacing: 0; font-weight: 600; }
+    .zoneCol { display: flex; flex-direction: column; gap: 10px; }
+      /* themed scrollbars — dark panel + violet thumb, no OS white crashing the theme */
+  #notesList::-webkit-scrollbar { width: 6px; }
+  #notesList::-webkit-scrollbar-track { background: transparent; }
+  #notesList::-webkit-scrollbar-thumb { background: rgba(109,74,255,.35); border-radius: 999px; }
+  #notesList::-webkit-scrollbar-thumb:hover { background: rgba(109,74,255,.6); }
+  #notesList { scrollbar-width: thin; scrollbar-color: rgba(109,74,255,.35) transparent; }
+
+  #notesList.lanes { flex-direction: row; align-items: flex-start; gap: 14px; width: min(1000px, 100%); }
+    #notesList.lanes .zoneCol { flex: 1; min-width: 200px; min-height: 140px; }
+#notesList.lanes .zoneCol.emptyZone { flex: .35; min-width: 120px; opacity: .75; }
+  .emptyZone .zoneHead { font-size: 11px; letter-spacing: .5px; padding: 10px 12px; }
+  .emptyZone .zline, .emptyZone .zcount { display: none; }
+  
+  .emptyMsg { color: var(--muted); text-align:center; margin-top: 30px; font-size: 14px; }
+
+  /* ---------- CATEGORY SETTINGS MENU ---------- */
+  #catSettings {
+    position: fixed; inset: 0; z-index: 55;
+    background: rgba(8,7,14,.6); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+  }
+  #catSettings.show { display: flex; }
+  #catSettingsBox {
+    width: min(420px, 92vw);
+    background: linear-gradient(165deg, #211f38, var(--panel));
+    border: 1px solid rgba(109,74,255,.35);
+    border-radius: 20px; padding: 22px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    animation: capIn .3s cubic-bezier(.2,.8,.2,1);
+  }
+  #catSettingsBox h2 { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+  #catSettingsBox .subhead { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .settingRow {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 4px; border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .settingRow:last-of-type { border-bottom: none; }
+  .settingRow .label { font-size: 14px; font-weight: 600; }
+  .settingRow .desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .settingRow .status {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    background: rgba(255,255,255,.06); padding: 4px 10px; border-radius: 999px;
+  }
+  .settingRow.clickable { cursor: pointer; transition: background .15s; }
+  .settingRow.clickable:hover { background: rgba(255,255,255,.04); }
+  .settingRow.clickable:hover .status { color: var(--text); }
+  .settingRow.armed .status { background: rgba(255,77,94,.18); color: var(--red); }
+  .settingRow.armed:hover .status { color: var(--red); }
+  .settingRow.on .status { background: rgba(109,74,255,.2); color: var(--accent); }
+  #rowOutline.on .status { background: rgba(109,74,255,.2); color: var(--accent); }
+  #closeSettings {
+    margin-top: 18px; width: 100%; background: rgba(109,74,255,.15);
+    color: var(--text); border: 1px solid rgba(109,74,255,.4);
+    padding: 11px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  #closeSettings:hover { background: rgba(109,74,255,.3); }
+
+  /* ---------- CAPTURE OVERLAY ---------- */
+  #capture {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(8,7,14,.72); backdrop-filter: blur(10px);
+    display: none; align-items: center; justify-content: center;
+  }
+  #capture.show { display: flex; }
+  #capBox {
+    width: min(480px, 92vw);
+    background: linear-gradient(165deg, #211f38, var(--panel));
+    border: 1px solid rgba(109,74,255,.35);
+    border-radius: 20px; padding: 22px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    animation: capIn .3s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes capIn { from { opacity: 0; transform: scale(.92) translateY(20px);} }
+  #capBox h2 { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
+  #noteInput {
+    width: 100%; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
+    color: var(--text); font-size: 18px; padding: 13px 14px; border-radius: 12px; outline: none;
+  }
+  #noteInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(109,74,255,.2); }
+
+  #carousel {
+    display: flex; gap: 10px; overflow-x: auto; padding: 16px 4px 10px;
+    scroll-snap-type: x mandatory; scrollbar-width: none;
+  }
+  #carousel::-webkit-scrollbar { display: none; }
+  .catOpt {
+    scroll-snap-align: center; flex-shrink: 0;
+    background: var(--panel2); border: 1.5px solid rgba(255,255,255,.1);
+    color: var(--text); border-radius: 14px; padding: 12px 18px;
+    font-size: 14px; font-weight: 600; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 8px;
+    transition: all .2s;
+  }
+  .catOpt.sel { border-color: var(--accent); background: rgba(109,74,255,.18); transform: scale(1.06); box-shadow: 0 0 18px rgba(109,74,255,.3); }
+
+  #prioRow { display: flex; gap: 10px; margin-top: 8px; }
+  .prio {
+    flex: 1; padding: 12px 0; border-radius: 12px; border: 1.5px solid transparent;
+    background: rgba(255,255,255,.04); color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: all .15s;
+  }
+  .prio.sel.pr-r { background: rgba(255,77,94,.2); border-color: var(--red); color: var(--red); }
+  .prio.sel.pr-y { background: rgba(255,201,60,.16); border-color: var(--yellow); color: var(--yellow); }
+  .prio.sel.pr-g { background: rgba(61,220,132,.14); border-color: var(--green); color: var(--green); }
+   #estRow, #editEstRow { display: flex; gap: 8px; margin-top: 8px; }
+.estBtn {
+    flex: 1 1 0; min-width: 0; padding: 14px 0; border-radius: 12px; border: 1.5px solid transparent;
+    background: rgba(255,255,255,.04); color: var(--muted); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all .15s;
+  }
+  .estBtn.sel { background: rgba(109,74,255,.18); border-color: var(--accent); color: var(--text); }
+  #capActions { display: flex; gap: 10px; margin-top: 18px; }
+  #saveBtn {
+    flex: 1; background: var(--accent); color: #fff; border: none; padding: 13px;
+    border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  #saveBtn:hover { filter: brightness(1.15); }
+  #cancelBtn { background: transparent; color: var(--muted); border: none; padding: 13px 8px; cursor: pointer; font-size: 14px; }
+
+  /* note rows become clickable */
+  .note { cursor: pointer; }
+  .note:hover { border-color: rgba(109,74,255,.45); }
+  .note.dragging { opacity: .35; border-style: dashed; border-color: var(--accent); cursor: grabbing; }
+
+  /* ---------- EDIT NOTE OVERLAY ---------- */
+  #editNote { position:fixed; inset:0; z-index:57; background:rgba(8,7,14,.72); backdrop-filter:blur(10px); display:none; align-items:center; justify-content:center; }
+  #editNote.show { display:flex; }
+  #editNoteBox { width:min(480px,92vw); background:linear-gradient(165deg,#211f38,var(--panel)); border:1px solid rgba(109,74,255,.35); border-radius:20px; padding:22px; box-shadow:0 30px 80px rgba(0,0,0,.6); }
+  #editNoteBox h2 { font-size:14px; font-weight:600; color:var(--muted); margin-bottom:10px; }
+  #editInput { width:100%; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); color:var(--text); font-size:18px; padding:13px 14px; border-radius:12px; outline:none; }
+  #editInput:focus { border-color:var(--accent); }
+  #editCarousel { display:flex; gap:10px; overflow-x:auto; padding:16px 4px 10px; scroll-snap-type:x mandatory; scrollbar-width:none; }
+  #editCarousel::-webkit-scrollbar { display:none; }
+  #editPrioRow { display:flex; gap:10px; margin-top:8px; }
+  .editActions { display:flex; gap:10px; margin-top:18px; align-items:center; }
+  #editDelete { background:rgba(255,77,94,.12); color:var(--red); border:none; padding:12px 14px; border-radius:12px; cursor:pointer; font-weight:700; }
+  #editCancel { background:transparent; color:var(--muted); border:none; padding:12px 8px; cursor:pointer; }
+  #editSave { flex:1; background:var(--accent); color:#fff; border:none; padding:12px; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; }
+
+  /* ---------- FAB ---------- */
+
+
+ #fab {
+    position: fixed; left: 50%; top: 74px; transform: translateX(-50%); z-index: 20;
+    width: min(340px, 80vw);
+    background: var(--panel2); border: 1.5px dashed rgba(109,74,255,.45);
+    color: var(--accent); font-size: 14px; font-weight: 700;
+    padding: 14px 0; border-radius: 12px; cursor: pointer;
+    transition: background .15s, transform .15s;
+    animation: fabPulse 2.4s ease-in-out infinite;
+  }
+  #fab:hover { border-style: solid; background: rgba(109,74,255,.12); transform: translateX(-50%) translateY(-2px); animation-play-state: paused; }
+  @keyframes fabPulse {
+    0%, 100% { border-color: rgba(109,74,255,.30); color: rgba(109,74,255,.75); box-shadow: 0 0 0 rgba(109,74,255,0); }
+    50%      { border-color: rgba(109,74,255,.85); color: var(--accent); box-shadow: 0 0 18px rgba(109,74,255,.18); }
+  }
+
+
+
+  /* ---------- TOAST ---------- */
+  #toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--panel2); border: 1px solid rgba(61,220,132,.4); color: var(--green);
+    padding: 10px 20px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: all .3s; z-index: 60;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>◎</span> SnapNote</h1>
+  <div id="viewLabel">Category Space — click any card to open its notes</div>
+   <button id="globalSettingsBtn" title="Global settings">⚙</button> 
+</header>
+
+<div id="space">
+  <div id="grid"></div>
+</div>
+
+<div id="detail">
+  <div class="bar">
+    <button id="backBtn">← Back</button>
+    <div id="detailTitle"></div>
+    <button id="settingsBtn" title="Category settings">⚙</button>
+    <div id="detailCounts"></div>
+  </div>
+ <button id="addNoteBar" title="Add note here (A)">＋ Add note</button>
+  
+  <div id="notesList"></div>
+</div>
+
+<!-- CATEGORY SETTINGS MENU -->
+<div id="catSettings">
+  <div id="catSettingsBox">
+    <h2 id="catSettingsTitle">Category Settings</h2>
+    <div class="subhead" id="catSettingsSub">Settings here apply to this category only.</div>
+
+    <div class="settingRow clickable" id="rowOutline">
+      <div>
+        <div class="label">Bold outline</div>
+        <div class="desc">Thick Excel-style border on this category's card</div>
+      </div>
+      <div class="status" id="outlineStatus">OFF</div>
+    </div>
+    <div class="settingRow">
+      <div>
+        <div class="label">Card shape</div>
+        <div class="desc">Pick a themed silhouette for this category's card</div>
+      </div>
+      <div class="status">coming soon</div>
+    </div>
+
+
+     <div class="settingRow clickable" id="rowRename">
+      <div>
+        <div class="label">Rename category</div>
+        <div class="desc">Change the name and emoji shown on the card</div>
+      </div>
+      <div class="status">edit</div>
+    </div>
+  <div class="settingRow clickable" id="rowDelete">
+      <div>
+        <div class="label">Delete category</div>
+        <div class="desc">Removes this category and every note in it</div>
+      </div>
+      <div class="status" id="deleteStatus">delete</div>
+    </div>
+
+    <div class="settingRow">
+      <div>
+        <div class="label">Priority aging</div>
+        <div class="desc">Notes escalate color automatically as a date approaches</div>
+      </div>
+      <div class="status">coming soon</div>
+    </div>
+    <div class="settingRow">
+      <div>
+        <div class="label">Sort preference</div>
+        <div class="desc">Default sort order inside this category</div>
+      </div>
+      <div class="status">coming soon</div>
+    </div>
+
+    <button id="closeSettings">Close</button>
+  </div>
+</div>
+
+
+
+
+
+<!-- GLOBAL SETTINGS MENU -->
+<div id="globalSettings">
+  <div id="globalSettingsBox">
+    <h2>Global settings</h2>
+    <div class="subhead">These settings apply to the whole app.</div>
+    <div class="settingRow" style="border-bottom:none; padding-bottom:2px;">
+      <div>
+        <div class="label">Grid columns</div>
+        <div class="desc">How many category cards fit in a row</div>
+      </div>
+    </div>
+    <div class="colsRow">
+      <button class="colBtn" data-cols="1">1</button>
+      <button class="colBtn" data-cols="2">2</button>
+      <button class="colBtn" data-cols="3">3</button>
+      <button class="colBtn" data-cols="4">4</button>
+      <button class="colBtn" data-cols="5">5</button>
+    </div>
+     <div class="settingRow clickable" id="rowShortcuts">
+      <div>
+        <div class="label">Keyboard shortcuts</div>
+        <div class="desc">SHIFT N opens quick capture — desktop convenience</div>
+      </div>
+      <div class="status" id="shortcutsStatus">OFF</div>
+    </div>
+     <div class="settingRow" style="border-bottom:none; padding-bottom:2px;">
+      <div>
+        <div class="label">Zone layout</div>
+        <div class="desc">Side-by-side lanes on wide screens, stacked on phones</div>
+      </div>
+    </div>
+    <div class="colsRow" id="layoutRow">
+      <button class="colBtn" data-layout="auto">Auto</button>
+      <button class="colBtn" data-layout="stack">Stack</button>
+      <button class="colBtn" data-layout="lanes">Lanes</button>
+    </div>
+    <button id="globalClose">Close</button>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+<!-- NEW CATEGORY POPUP -->
+<div id="newCat">
+  <div id="newCatBox">
+    <h2 id="newCatTitle">New category</h2>
+    <input id="newCatName" placeholder="Category name" maxlength="24" autocomplete="off">
+    <input id="newCatEmoji" placeholder="Emoji (optional, e.g. 🎸)" maxlength="4" autocomplete="off">
+    <div class="newCatActions">
+      <button id="newCatCancel">Cancel</button>
+      <button id="newCatSave">Create ✓</button>
+    </div>
+  </div>
+</div>
+
+<button id="fab" title="Quick capture (N)">＋ Capture a note</button>
+
+<div id="capture">
+  <div id="capBox">
+    <h2>Jot it down — before you forget it 💭</h2>
+    <input id="noteInput" placeholder="e.g. Get filter for mower" autocomplete="off">
+    <h2 style="margin-top:14px">Category — swipe / tap</h2>
+    <div id="carousel"></div>
+    <h2 style="margin-top:6px">Priority — sets the color</h2>
+    <div id="prioRow">
+      <button class="prio pr-r" data-p="r">● NOW</button>
+      <button class="prio pr-y" data-p="y">● SOON</button>
+      <button class="prio pr-g sel" data-p="g">● SOMEDAY</button>
+    </div>
+     <h2 style="margin-top:6px">Time — roughly how long?</h2>
+    <div id="estRow">
+      <button class="estBtn" data-est="unset">•</button>
+      <button class="estBtn" data-est="5m">5m</button>
+      <button class="estBtn" data-est="15m">15m</button>
+      <button class="estBtn" data-est="30m">30m</button>
+      <button class="estBtn" data-est="1h">1h</button>
+      <button class="estBtn" data-est="4h">4h</button>
+    </div>
+    <div id="capActions">
+      <button id="cancelBtn">Cancel</button>
+      <button id="saveBtn">Save Note ⚡</button>
+    </div>
+  </div>
+</div>
+<!-- EDIT NOTE POPUP -->
+<div id="editNote">
+  <div id="editNoteBox">
+    <h2>Edit note ✏️</h2>
+    <input id="editInput" autocomplete="off">
+    <h2 style="margin-top:14px">Category — tap to move</h2>
+    <div id="editCarousel"></div>
+    <h2 style="margin-top:6px">Priority</h2>
+    <div id="editPrioRow">
+      <button class="prio pr-r" data-p="r">● NOW</button>
+      <button class="prio pr-y" data-p="y">● SOON</button>
+      <button class="prio pr-g" data-p="g">● SOMEDAY</button>
+    </div>
+     <h2 style="margin-top:6px">Time</h2>
+    <div id="editEstRow">
+      <button class="estBtn" data-est="unset">•</button>
+      <button class="estBtn" data-est="5m">5m</button>
+      <button class="estBtn" data-est="15m">15m</button>
+      <button class="estBtn" data-est="30m">30m</button>
+      <button class="estBtn" data-est="1h">1h</button>
+      <button class="estBtn" data-est="4h">4h</button>
+    </div>
+    <div class="editActions">
+      <button id="editDelete">🗑 Delete</button>
+      <button id="editCancel">Cancel</button>
+      <button id="editSave">Save changes ✓</button>
+    </div>
+  </div>
+</div>
+<div id="toast">Saved ✓</div>
+
+<script>
+
+
+
+
+
+
+
+
+
+// ---------- SETTINGS ----------
+  const SETTINGS_KEY = 'snapnote_settings_v1';
+  let settings = { cols: 3, shortcuts: false, layout: 'auto' };
+  function loadSettings(){
+    const s = localStorage.getItem(SETTINGS_KEY);
+    if(s){ try {  settings =Object.assign({ cols: 3, shortcuts: false, layout: 'auto' }, JSON.parse(s)); } catch(e){} }
+    if(typeof settings.cols !== 'number' || settings.cols < 1 || settings.cols > 5) settings.cols = 3;
+    document.documentElement.style.setProperty('--cols', settings.cols);
+  }
+  function saveSettings(){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+   
+
+   }
+
+
+
+
+
+
+
+
+
+  // ---------- DATA ----------
+   let CATS = [
+    { id:'auto',  name:'Auto Stuff',      emoji:'🚗' },
+    { id:'home',  name:'Home & Outdoors', emoji:'🌿' },
+    { id:'pers',  name:'Personal',        emoji:'🙂' },
+    { id:'pets',  name:'Pets',            emoji:'🐾' },
+    { id:'fam',   name:'Family',          emoji:'👨‍👩‍👧' },
+    { id:'proj',  name:'Projects',        emoji:'🛠️' },
+  ];
+  const CATS_KEY = 'snapnote_cats_v1';
+  function loadCats(){
+    const saved = localStorage.getItem(CATS_KEY);
+    if(saved){ try { CATS = JSON.parse(saved); } catch(e){} }
+  }
+  function saveCats(){
+    localStorage.setItem(CATS_KEY, JSON.stringify(CATS));
+  }
+  loadCats();
+  loadSettings();
+ let notes = [];
+  const NOTES_KEY = 'snapnote_notes_v1';
+
+
+
+ function loadNotes(){
+    const saved = localStorage.getItem(NOTES_KEY);
+    if(saved){ try { notes = JSON.parse(saved); } catch(e){ notes = []; } }
+    else {
+      notes = [
+        { cat:'home', p:'y', txt:'Order special air filter for mower (fits before spring)', t:'2d ago' },
+        { cat:'home', p:'r', txt:'Fix dripping hose bib before winter freeze', t:'today' },
+        { cat:'auto', p:'r', txt:'Subaru: book transmission fluid swap', t:'today' },
+        { cat:'pets', p:'r', txt:'Ask vet about travel anxiety med for car rides', t:'2d ago' },
+      ];
+    }
+    // SCHEMA MIGRATION v2 — every note gets: ts (real time), zone, idx (order in zone), est
+    const ctr = {}; let stamp = Date.now();
+    notes.forEach(n=>{
+      if(!n.ts){
+        if(n.t==='2d ago') stamp -= 2*24*60*60*1000;
+        else if(n.t==='today') stamp -= 12*60*60*1000;
+        n.ts = stamp;
+      }
+      if(!['r','y','g'].includes(n.zone)) n.zone = n.p || 'g';
+      if(typeof n.idx !== 'number'){
+        const k = n.cat + '/' + n.zone;
+        ctr[k] = (ctr[k] || 0);
+        n.idx = ctr[k]++;
+      }
+      if(!n.est) n.est = 'unset';
+      if(!['r','y','g'].includes(n.p)) n.p = n.zone || 'g';
+      delete n.t; // retired static tag
+    });
+    saveNotes(); // persist migrated shapes immediately
+  }
+
+
+
+
+
+
+
+
+  function saveNotes(){
+    localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+  }
+  loadNotes();
+
+
+
+
+
+  // emoji helpers — categories may now have no emoji at all
+  function emojiHtml(c){ return c.emoji ? `<span class="emoji">${c.emoji}</span>` : ''; }
+  function emojiTxt(c){ return c.emoji ? c.emoji + ' ' : ''; }
+
+
+
+
+
+
+// zone-order helpers — where a note sits inside its zone's sequence
+  function minIdx(cat, zone){ return notes.filter(n=>n.cat===cat && n.zone===zone).reduce((m,n)=>Math.min(m,n.idx), 0); }
+  function maxIdx(cat, zone){ return notes.filter(n=>n.cat===cat && n.zone===zone).reduce((m,n)=>Math.max(m,n.idx), -1); }
+   // surgical repainter — updates one note row's colors/text in place, no relayout blink
+  function repaintNote(ref){
+    const n = notes[ref];
+    const row = notesList.querySelector(`.note[data-note-ref="${ref}"]`);
+   
+    if(!n || !row) return;
+    row.className = 'note p-'+n.p;
+    row.innerHTML = `<div class="strip"></div><div class="txt">${n.txt}</div>
+      <div class="meta">${PRIOS[n.p].label} · ${relTime(n.ts)}</div>
+      <button class="del" title="Delete">✕</button>`;
+    row.querySelector('.del').onclick = ()=>{ notes.splice(notes.indexOf(n),1); saveNotes(); openCat(currentCat); renderSpace(); };
+    row.onclick = (ev)=>{ if(ev.target.closest('.del')) return; openEdit(n); };
+  }
+  function relTime(ts){
+    const s = Math.floor((Date.now()-ts)/1000);
+    if(s < 60) return 'just now';
+    const m = Math.floor(s/60); if(m < 60) return m+'m ago';
+    const h = Math.floor(m/60); if(h < 24) return h+'h ago';
+    const d = Math.floor(h/24); if(d < 60) return d+'d ago';
+    return Math.floor(d/30)+'mo ago';
+  }
+  const PRIOS = { r:{label:'NOW'}, y:{label:'SOON'}, g:{label:'SOMEDAY'} };
+  let currentCat = null;
+
+  // ---------- SPACE ----------
+  const grid = document.getElementById('grid');
+  const spaceEl = document.getElementById('space');
+  const detailEl = document.getElementById('detail');
+    const notesList = document.getElementById('notesList');
+  function countFor(catId, p){ return notes.filter(n=>n.cat===catId && n.p===p).length; }
+
+  function renderSpace(){
+    grid.innerHTML = '';
+    CATS.forEach((c,i)=>{
+      const r = countFor(c.id,'r'), y = countFor(c.id,'y'), g = countFor(c.id,'g'), total = r+y+g;
+      const el = document.createElement('div');
+      el.className = 'cat' + (r>0 ? ' hot' : (y>1 ? ' warm' : '')) + (c.outline ? ' outlined' : '');
+      el.style.animationDelay = (i*0.08)+'s';
+      el.tabIndex = 0;
+      el.setAttribute('role','button');
+      el.dataset.catId = c.id;
+      el.draggable = true;
+      el.innerHTML = `
+        <div class="heat"></div>
+
+
+        <div class="name">${emojiHtml(c)}${c.name}</div>
+
+
+
+
+        <div class="sub">${total} note${total!==1?'s':''} captured</div>
+        <div class="total">${r>0?'🔥':''}</div>
+        <div class="counts">
+          ${r? `<div class="pill r"><span class="dot"></span>${r}</div>`:''}
+          ${y? `<div class="pill y"><span class="dot"></span>${y}</div>`:''}
+          ${g? `<div class="pill g"><span class="dot"></span>${g}</div>`:''}
+          ${!total? '<div class="sub" style="margin:0">empty</div>':''}
+        </div>
+        <div class="openCue">view notes →</div>
+        <div class="heatbar">
+          <div class="seg" style="flex-grow:${r};background:#ff4d5e"></div>
+          <div class="seg" style="flex-grow:${y};background:#ffc93c"></div>
+          <div class="seg" style="flex-grow:${g};background:#3ddc84"></div>
+        </div>`;
+         el.style.setProperty('--glow', Math.min(r/2.5, 3));
+      grid.appendChild(el);
+    });
+    const add = document.createElement('div');
+    add.className = 'cat addCard';
+    add.tabIndex = 0;
+    add.innerHTML = `<div class="addPlus">＋</div><div class="addLabel">New category</div>`;
+    grid.appendChild(add);
+  }
+
+   grid.addEventListener('click', e=>{
+    const cardEl = e.target.closest('.cat');
+    if(!cardEl) return;
+    if(cardEl.classList.contains('addCard')){ openNewCat(); return; }
+    const found = CATS.find(c => c.id === cardEl.dataset.catId);
+    if(found) openCat(found);
+  });
+ grid.addEventListener('keydown', e=>{
+    const cardEl = e.target.closest('.cat');
+    if(!cardEl) return;
+    if(cardEl && (e.key==='Enter' || e.key===' ')){
+      e.preventDefault();
+      const found = CATS.find(c => c.id === cardEl.dataset.catId);
+      if(found) openCat(found);
+    }
+  });
+  // ---------- DRAG & DROP REORDER ----------
+  grid.addEventListener('dragstart', e=>{
+    const cardEl = e.target.closest('.cat');
+    if(!cardEl || cardEl.classList.contains('addCard')){ e.preventDefault(); return; }
+    cardEl.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', ''); // required for Firefox to start the drag
+  });
+   grid.addEventListener('dragover', e=>{
+    e.preventDefault(); // REQUIRED — without this the browser refuses to drop
+    const dragging = grid.querySelector('.dragging');
+    if(!dragging) return;
+    const over = e.target.closest('.cat');
+    if(!over || over === dragging || over.classList.contains('addCard')) return;
+    // SWAP: trade places with the card under the cursor, nothing else moves
+    const placeholder = document.createElement('div');
+    placeholder.style.display = 'none';
+    over.after(placeholder);
+    dragging.after(over);
+    placeholder.after(dragging);
+    placeholder.remove();
+  });
+
+
+
+
+
+  grid.addEventListener('dragend', ()=>{
+    const dragging = grid.querySelector('.dragging');
+    if(dragging) dragging.classList.remove('dragging');
+    // rebuild CATS order from whatever order the DOM ended up in
+    const order = [...grid.querySelectorAll('.cat:not(.addCard)')].map(el=>el.dataset.catId);
+    CATS.sort((a,b)=> order.indexOf(a.id) - order.indexOf(b.id));
+    saveCats();
+  });
+
+
+
+
+
+  // ---------- DETAIL ----------
+  function openCat(c){
+     document.getElementById('fab').style.display = 'none';
+    currentCat = c;
+    document.getElementById('viewLabel').textContent = `Inside: ${c.name}`;
+
+
+
+
+
+      document.getElementById('detailTitle').innerHTML = `${emojiTxt(c)}${c.name}`;
+
+
+
+
+
+
+
+    const r=countFor(c.id,'r'), y=countFor(c.id,'y'), g=countFor(c.id,'g');
+    document.getElementById('detailCounts').innerHTML =
+      `${r?`<div class="pill r"><span class="dot"></span>${r}</div>`:''}
+       ${y?`<div class="pill y"><span class="dot"></span>${y}</div>`:''}
+       ${g?`<div class="pill g"><span class="dot"></span>${g}</div>`:''}`;
+    const list = document.getElementById('notesList');
+     document.getElementById('addNoteBar').onclick = openCap; // capture opens with this category preselected
+     
+    list.innerHTML='';
+    const order={r:0,y:1,g:2};
+    const mine = notes.filter(n=>n.cat===c.id).sort((a,b)=> (order[a.zone]-order[b.zone]) || (a.idx-b.idx))
+
+
+
+
+        if(!mine.length){ list.innerHTML = '<div class="emptyMsg">Nothing here yet — hit + to capture something</div>'; }
+
+
+
+
+      let seq = 0;
+    ['r','y','g'].forEach(z=>{
+            const zn = mine.filter(n=>n.zone===z);
+      const col = document.createElement('div');
+      col.className = 'zoneCol z-'+z;
+      const zh = document.createElement('div');
+      zh.className = 'zoneHead z-'+z;
+      zh.innerHTML = `<span class="zdot"></span>${PRIOS[z].label}<span class="zline"></span><span class="zcount">${zn.length} note${zn.length!==1?'s':''}</span>`;
+
+
+      col.appendChild(zh);
+      if(!zn.length){ col.classList.add('emptyZone'); col.style.minHeight = '140px'; }
+      zn.forEach(n=>{
+
+        const el = document.createElement('div');
+        el.className = 'note p-'+n.p;
+        el.style.animationDelay = (seq++ * 0.05)+'s';
+        el.innerHTML = `<div class="strip"></div><div class="txt">${n.txt}</div>
+          <div class="meta">${PRIOS[n.p].label} · ${relTime(n.ts)}</div>
+          <button class="del" title="Delete">✕</button>`;
+        el.querySelector('.del').onclick = ()=>{ notes.splice(notes.indexOf(n),1); saveNotes(); openCat(c); renderSpace(); };
+        el.onclick = (ev)=>{ if(ev.target.closest('.del')) return; openEdit(n); };
+        el.draggable = true;
+        el.dataset.noteRef = notes.indexOf(n);
+        col.appendChild(el);
+      });
+      list.appendChild(col);
+    });
+    spaceEl.style.opacity = 0;
+    setTimeout(()=>{ spaceEl.style.display='none'; detailEl.classList.add('show'); },150);
+  }
+
+
+
+
+  // ---------- DRAG-WITHIN-ZONE REORDER (permanent pinning) ----------
+  let zoneMoved = false;
+
+
+  notesList.addEventListener('dragstart', e=>{
+    const noteEl = e.target.closest('.note');
+    if(!noteEl){ e.preventDefault(); return; }
+    noteEl.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', ''); // Firefox requirement
+  });
+
+
+
+
+
+notesList.addEventListener('dragover', e=>{
+    e.preventDefault();
+    const dragging = notesList.querySelector('.dragging');
+    if(!dragging) return;
+    const dragNote = notes[+dragging.dataset.noteRef];
+    if(!dragNote) return;
+    // find zone context: dropped-on note's zone, or a hovered zone column/header
+    const overNote = e.target.closest('.note');
+    const overCol  = e.target.closest('.zoneCol');
+    const overHead = e.target.closest('.zoneHead');
+    // PHASE 2: cross-zone drop — reprioritize in place, exactly where released
+    if(overNote){
+      const overN = notes[+overNote.dataset.noteRef];
+      if(!overN) return;
+      const sameZone = dragNote.zone === overN.zone;
+      const r = overNote.getBoundingClientRect();
+      const after = (e.clientY - r.top) > r.height/2;
+      overNote.parentNode.insertBefore(dragging, after ? overNote.nextElementSibling : overNote);
+      if(!sameZone){
+        dragNote.zone = overN.zone;
+        dragNote.p = overN.zone;
+        dragNote.idx = (after ? overN.idx : overN.idx - 0.5); // fractional idx: lands exactly between neighbors
+           zoneMoved = true;
+      }
+      return;
+    }
+    if(overCol){
+        const colEl = overCol;
+      let z = null;
+      if(colEl.classList.contains('z-r')) z = 'r';
+      if(colEl.classList.contains('z-y')) z = 'y';
+      if(colEl.classList.contains('z-g')) z = 'g';
+      if(z && z !== dragNote.zone){
+        colEl.classList.add('dropTarget');
+        dragging.dataset.pendingZone = z; // remembered for drop, applied on dragend
+      }
+    }
+  });
+
+
+
+
+
+notesList.addEventListener('dragend', ()=>{
+  
+    const dragging = notesList.querySelector('.dragging');
+    if(dragging){
+      // zone-header/column drop pending? promote to that zone's front
+
+
+       if(dragging.dataset.pendingZone){
+        const nz = dragging.dataset.pendingZone;
+        const n = notes[+dragging.dataset.noteRef];
+        if(n && nz !== n.zone){
+          n.zone = nz; n.p = nz;
+          n.idx = minIdx(n.cat, nz) - 1;
+          zoneMoved = true; // arm the repaint — data's already moved, screen needs the settle-recolor
+        const colEl = notesList.querySelector('.zoneCol.z-'+nz);
+          if(colEl){
+            colEl.appendChild(dragging);
+            colEl.classList.remove('emptyZone'); // live un-scrunch: lane flexes back on arrival
+            colEl.style.minHeight = '';
+          }
+        }
+        delete dragging.dataset.pendingZone;
+      }
+
+
+
+      dragging.classList.remove('dragging');
+    }
+    notesList.querySelectorAll('.dropTarget').forEach(el=>el.classList.remove('dropTarget'));
+    // Re-number EVERY zone from visible order (fractional/foreign placements normalize here)
+    const seen = {};
+    notesList.querySelectorAll('.note').forEach(row=>{
+      const ref = +row.dataset.noteRef, n = notes[ref];
+      if(!n) return;
+      const domZone = row.closest('.zoneCol');
+      const z = domZone ? (domZone.classList.contains('z-r')?'r':domZone.classList.contains('z-y')?'y':'g') : n.zone;
+      if(z !== n.zone){ n.zone = z; n.p = z; } // DOM position wins — the lane you sit in is your truth
+      const k = n.cat + '/' + n.zone;
+      n.idx = seen[k] = (seen[k] === undefined ? 0 : seen[k] + 1);
+    });
+    saveNotes();
+    // re-scrunch: after the move, update each column's emptiness so lanes flex correctly
+    notesList.querySelectorAll('.zoneCol').forEach(col=>{
+      const has = col.querySelectorAll('.note').length > 0;
+      const was = col.classList.contains('emptyZone');
+      if(!has && !was){ col.classList.add('emptyZone'); col.style.minHeight = '140px'; }
+      if(has && was){ col.classList.remove('emptyZone'); col.style.minHeight = ''; }
+    });
+      renderSpace(); // home-grid pills + glow reflect the reprioritized world
+      if(zoneMoved){
+      zoneMoved = false;
+        const movedRef = +dragging.dataset.noteRef;
+
+      setTimeout(()=>{
+        repaintNote(movedRef);
+        // refresh the detail-view pill counts too (strip + pills tell the same story)
+        const c = currentCat;
+        if(c){
+          const r=countFor(c.id,'r'), y=countFor(c.id,'y'), g=countFor(c.id,'g');
+          document.getElementById('detailCounts').innerHTML =
+            `${r?`<div class="pill r"><span class="dot"></span>${r}</div>`:''}
+             ${y?`<div class="pill y"><span class="dot"></span>${y}</div>`:''}
+             ${g?`<div class="pill g"><span class="dot"></span>${g}</div>`:''}`;
+        }
+      }, 320); // settle-then-recolor, one row + pill bar only
+    }
+  });
+
+
+
+
+
+  document.getElementById('backBtn').onclick = ()=>{
+    document.getElementById('fab').style.display = '';
+    closeSettings();
+    detailEl.classList.remove('show');
+    spaceEl.style.display='flex';
+    requestAnimationFrame(()=> spaceEl.style.opacity=1);
+    currentCat=null;
+    document.getElementById('viewLabel').textContent = 'Category Space — click any card to open its notes';
+    renderSpace();
+  };
+
+  // ---------- CATEGORY SETTINGS MENU ----------
+  const catSettings = document.getElementById('catSettings');
+  function openSettings(){
+    if(!currentCat) return;
+
+
+
+
+       document.getElementById('catSettingsTitle').innerHTML = `${emojiTxt(currentCat)}${currentCat.name} — Settings`;
+
+
+
+
+
+
+    document.getElementById('catSettingsSub').textContent = `Settings here apply to "${currentCat.name}" only.`;
+    document.getElementById('outlineStatus').textContent = currentCat.outline ? 'ON' : 'OFF';
+    document.getElementById('rowOutline').classList.toggle('on', !!currentCat.outline);
+     deleteArmed = false;
+    document.getElementById('deleteStatus').textContent = 'delete';
+    document.getElementById('rowDelete').classList.remove('armed');
+    catSettings.classList.add('show');
+  }
+  function closeSettings(){ catSettings.classList.remove('show'); }
+  document.getElementById('settingsBtn').onclick = openSettings;
+  document.getElementById('closeSettings').onclick = closeSettings;
+  catSettings.onclick = e=>{ if(e.target===catSettings) closeSettings(); };
+
+  // BOLD OUTLINE TOGGLE — flips per-category preference, persists via saveCats
+  document.getElementById('rowOutline').onclick = ()=>{
+    if(!currentCat) return;
+    currentCat.outline = !currentCat.outline;
+    saveCats();
+    const card = grid.querySelector(`[data-cat-id="${currentCat.id}"]`);
+    if(card) card.classList.toggle('outlined', currentCat.outline);
+    document.getElementById('outlineStatus').textContent = currentCat.outline ? 'ON' : 'OFF';
+    document.getElementById('rowOutline').classList.toggle('on', !!currentCat.outline);
+
+
+
+
+
+    toast(currentCat.outline ? 'Bold outline on ✓' : 'Bold outline off');
+
+
+
+
+  };
+// RENAME CATEGORY — reuses the new-category popup in "rename" mode
+  function openRename(){
+    if(!currentCat) return;
+    newCatMode = 'rename'; renameTarget = currentCat;
+    document.getElementById('newCatTitle').textContent = 'Rename category';
+    document.getElementById('newCatSave').textContent = 'Save ✓';
+    newCatName.value = currentCat.name;
+     newCatEmoji.value = currentCat.emoji || '';
+    newCatEl.classList.add('show');
+    setTimeout(()=>newCatName.focus(),50);
+  }
+  document.getElementById('rowRename').onclick = ()=>{ closeSettings(); openRename(); };
+   // DELETE CATEGORY — two-tap confirm; cascades to the category's notes
+  let deleteArmed = false;
+  document.getElementById('rowDelete').onclick = ()=>{
+    if(!currentCat) return;
+    if(!deleteArmed){
+      const cnt = notes.filter(n=>n.cat===currentCat.id).length;
+      document.getElementById('deleteStatus').textContent = cnt ? `Delete ${cnt} note${cnt!==1?'s':''} too?` : 'Sure? Tap again';
+      document.getElementById('rowDelete').classList.add('armed');
+      deleteArmed = true;
+      return;
+    }
+    const id = currentCat.id;
+    notes = notes.filter(n=>n.cat!==id);
+    CATS = CATS.filter(c=>c.id!==id);
+    saveNotes(); saveCats();
+    deleteArmed = false;
+    closeSettings();
+    document.getElementById('backBtn').click(); // exits the now-deleted category cleanly
+    toast('Category deleted');
+  };
+
+
+
+
+ // ---------- GLOBAL SETTINGS ----------
+  const globalEl = document.getElementById('globalSettings');
+  document.getElementById('globalSettingsBtn').onclick = ()=>{
+     document.querySelectorAll('.colBtn[data-cols]').forEach(b=>b.classList.toggle('sel', +b.dataset.cols === settings.cols));
+    document.getElementById('shortcutsStatus').textContent = settings.shortcuts ? 'ON' : 'OFF';
+    document.getElementById('rowShortcuts').classList.toggle('on', settings.shortcuts);
+      document.querySelectorAll('#layoutRow .colBtn').forEach(b=>b.classList.toggle('sel', b.dataset.layout===(settings.layout||'auto')));
+    globalEl.classList.add('show');
+  };
+  document.getElementById('globalClose').onclick = ()=> globalEl.classList.remove('show');
+  globalEl.onclick = e=>{ if(e.target===globalEl) globalEl.classList.remove('show'); };
+  function applyLayout(){
+    const pref = settings.layout || 'auto';
+    const mode = (pref==='auto') ? (window.matchMedia('(min-width: 900px)').matches ? 'lanes' : 'stack') : pref;
+    notesList.classList.toggle('lanes', mode==='lanes');
+  }
+  document.querySelectorAll('#layoutRow .colBtn').forEach(b=>{
+    b.onclick = ()=>{
+      settings.layout = b.dataset.layout;
+      saveSettings();
+      document.querySelectorAll('#layoutRow .colBtn').forEach(x=>x.classList.toggle('sel', x===b));
+      applyLayout();
+      toast('Zone layout: ' + ({auto:'Auto', stack:'Stack', lanes:'Lanes'})[settings.layout] + ' ✓');
+    };
+  });
+  window.matchMedia('(min-width: 900px)').addEventListener('change', applyLayout);
+  applyLayout();
+  document.getElementById('rowShortcuts').onclick = ()=>{
+    settings.shortcuts = !settings.shortcuts;
+    saveSettings();
+    document.getElementById('shortcutsStatus').textContent = settings.shortcuts ? 'ON' : 'OFF';
+    document.getElementById('rowShortcuts').classList.toggle('on', settings.shortcuts);
+    toast(settings.shortcuts ? 'Shortcuts on ✓' : 'Shortcuts off');
+  };
+   document.querySelectorAll('.colBtn[data-cols]').forEach(b=>{
+    b.onclick = ()=>{
+      settings.cols = +b.dataset.cols;
+      saveSettings();
+
+
+if(typeof settings.cols !== 'number' || settings.cols < 1 || settings.cols > 5) settings.cols = 3;
+      document.documentElement.style.setProperty('--cols', settings.cols);
+
+
+
+      document.querySelectorAll('.colBtn').forEach(x=>x.classList.toggle('sel', x===b));
+      toast(`${settings.cols} column${settings.cols>1?'s':''} ✓`);
+    };
+  });
+
+
+
+  // ---------- CAPTURE ----------
+  const cap=document.getElementById('capture'), input=document.getElementById('noteInput'),
+        car=document.getElementById('carousel'), saveBtn=document.getElementById('saveBtn');
+  let selPrio='g', selCat=null, selEst='unset';
+
+  function buildCarousel(){
+    car.innerHTML='';
+    CATS.forEach(c=>{
+      const b=document.createElement('button');
+      b.className='catOpt'; b.dataset.cat=c.id;
+
+
+
+
+
+     b.innerHTML=`${emojiTxt(c)}${c.name}`;
+
+
+
+
+
+      b.onclick=()=>selectCat(c.id);
+      car.appendChild(b);
+    });
+    selectCat(currentCat ? currentCat.id : CATS[0].id);
+  }
+  function selectCat(id){
+    selCat=id;
+    car.querySelectorAll('.catOpt').forEach(o=>o.classList.toggle('sel', o.dataset.cat===id));
+    const s=car.querySelector(`[data-cat="${id}"]`);
+    s && s.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+  }
+
+  function openCap(){
+    buildCarousel();
+     input.value=''; selEst='unset'; cap.classList.add('show');
+    document.querySelectorAll('#estRow .estBtn').forEach(x=>x.classList.toggle('sel', x.dataset.est==='unset'));
+    setTimeout(()=>input.focus(),50);
+  }
+  function closeCap(){ cap.classList.remove('show'); }
+
+  document.getElementById('fab').onclick = openCap;
+  document.getElementById('cancelBtn').onclick = closeCap;
+  cap.onclick = e=>{ if(e.target===cap) closeCap(); };
+document.querySelectorAll('#estRow .estBtn').forEach(b=>{
+    b.onclick = ()=>{
+      selEst = b.dataset.est;
+      document.querySelectorAll('#estRow .estBtn').forEach(x=>x.classList.toggle('sel', x===b));
+    };
+  });
+  document.querySelectorAll('#prioRow .prio').forEach(b=>{
+    b.onclick = ()=>{
+      document.querySelectorAll('#prioRow .prio').forEach(x=>x.classList.remove('sel'));
+      b.classList.add('sel'); selPrio=b.dataset.p;
+    };
+  });
+
+  function toast(msg){
+    const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 1600);
+  }
+
+  saveBtn.onclick = ()=>{
+    const txt = input.value.trim();
+    if(!txt){ input.focus(); return; }
+     notes.push({ cat:selCat, p:selPrio, txt, zone:selPrio, idx:minIdx(selCat,selPrio)-1, est:selEst, ts:Date.now() });
+    saveNotes();
+    closeCap(); renderSpace();
+    toast(`Saved to ${CATS.find(c=>c.id===selCat).name} ✓`);
+    if(currentCat) openCat(CATS.find(c=>c.id===selCat));
+  };
+    // Enter saves from anywhere inside the capture box — priority/category chips steal focus after clicks
+  cap.addEventListener('keydown', e=>{
+       if(e.key==='Enter'){ e.preventDefault(); saveBtn.click(); }
+  });
+  // keyboard shortcuts
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){
+       if(editEl && editEl.classList.contains('show')) closeEdit();
+      else if(newCatEl.classList.contains('show')) closeNewCat();
+      else if(catSettings.classList.contains('show')) closeSettings();
+      else if(currentCat) document.getElementById('backBtn').click();
+    }
+     if(settings.shortcuts && (e.key==='n'||e.key==='N')){
+      const ae = document.activeElement, tag = ae ? ae.tagName : '';
+      if(tag!=='INPUT' && tag!=='TEXTAREA'){ e.preventDefault(); openCap(); }
+    }
+  });
+// ---------- NEW CATEGORY ----------
+  const newCatEl = document.getElementById('newCat');
+  const newCatName = document.getElementById('newCatName');
+  const newCatEmoji = document.getElementById('newCatEmoji');
+
+
+
+
+
+
+
+
+
+
+   let newCatMode = 'new', renameTarget = null;
+  function openNewCat(){
+    newCatMode = 'new'; renameTarget = null;
+    document.getElementById('newCatTitle').textContent = 'New category';
+    document.getElementById('newCatSave').textContent = 'Create ✓';
+    newCatName.value=''; newCatEmoji.value='';
+    newCatEl.classList.add('show');
+    setTimeout(()=>newCatName.focus(),50);
+  }
+
+
+
+
+
+
+
+
+
+
+  function closeNewCat(){ newCatEl.classList.remove('show'); }
+    // fresh binding — immune to whatever became of the original wiring
+  const ncCancel = document.getElementById('newCatCancel');
+   ncCancel.onclick = ()=> closeNewCat();
+
+
+ document.getElementById('newCatSave').onclick = ()=>{
+    const nm = newCatName.value.trim();
+    if(!nm){ newCatName.focus(); return; }
+    const em = newCatEmoji.value.trim();
+    if(newCatMode === 'rename' && renameTarget){
+      // rename mutates the EXISTING category object — id stays stable, notes stay attached
+      renameTarget.name = nm;
+
+
+       renameTarget.emoji = em;
+
+
+
+      saveCats(); closeNewCat(); renderSpace();
+
+
+
+
+       document.getElementById('detailTitle').innerHTML = `${emojiTxt(renameTarget)}${renameTarget.name}`;
+
+
+
+
+
+
+
+      document.getElementById('viewLabel').textContent = `Inside: ${renameTarget.name}`;
+      toast('Category renamed ✓');
+    } else {
+      CATS.push({ id:'cat'+Date.now(), name:nm, emoji: em, });
+      saveCats(); closeNewCat(); renderSpace();
+      toast(`Category "${nm}" created ✓`);
+    }
+  };
+   // ---------- EDIT NOTE ----------
+  const editEl = document.getElementById('editNote');
+  const editInput = document.getElementById('editInput');
+  const editCar = document.getElementById('editCarousel');
+  let editTarget = null, editPrio = 'g', editCatSel = null, editEst = 'unset';
+
+  function buildEditCarousel(){
+    editCar.innerHTML='';
+    CATS.forEach(c=>{
+      const b = document.createElement('button');
+      b.className = 'catOpt'; b.dataset.cat = c.id;
+
+
+
+
+      b.innerHTML = `${emojiTxt(c)}${c.name}`;
+
+
+
+
+
+      b.onclick = ()=>{
+        editCatSel = c.id;
+        editCar.querySelectorAll('.catOpt').forEach(o=>o.classList.toggle('sel', o.dataset.cat===c.id));
+        const s = editCar.querySelector(`[data-cat="${c.id}"]`);
+        s && s.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+      };
+      editCar.appendChild(b);
+    });
+  }
+  function setEditPrio(p){
+    editPrio = p;
+    document.querySelectorAll('#editPrioRow .prio').forEach(x=>x.classList.toggle('sel', x.dataset.p===p));
+  }
+  function openEdit(n){
+    editTarget = n;
+    editInput.value = n.txt;
+    buildEditCarousel();
+    const btn = editCar.querySelector(`[data-cat="${n.cat}"]`);
+    if(btn) btn.click();
+    setEditPrio(n.p);
+    setEditEst(n.est || 'unset');
+    editEl.classList.add('show');
+    setTimeout(()=>editInput.focus(), 50);
+  }
+  function closeEdit(){ editEl.classList.remove('show'); editTarget = null; }
+  editEl.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); document.getElementById('editSave').click(); }
+  });
+  document.getElementById('editSave').onclick = ()=>{
+    if(!editTarget) return;
+    const txt = editInput.value.trim();
+    if(!txt){ editInput.focus(); return; }
+      editTarget.txt = txt; editTarget.p = editPrio; editTarget.cat = editCatSel; editTarget.est = editEst;
+     if(editTarget.zone !== editPrio){
+      editTarget.zone = editPrio;
+      editTarget.idx = maxIdx(editCatSel, editPrio) + 1;
+    }
+    saveNotes(); closeEdit(); renderSpace();
+    toast('Note updated ✓');
+    if(currentCat) openCat(currentCat);
+  };
+  document.getElementById('editCancel').onclick = closeEdit;
+  document.getElementById('editDelete').onclick = ()=>{
+    if(!editTarget) return;
+    notes.splice(notes.indexOf(editTarget), 1);
+    saveNotes(); closeEdit(); renderSpace();
+    toast('Note deleted');
+    if(currentCat) openCat(currentCat);
+  };
+  editEl.onclick = e=>{ if(e.target === editEl) closeEdit(); };
+ function setEditEst(v){
+    editEst = v;
+    document.querySelectorAll('#editEstRow .estBtn').forEach(x=>x.classList.toggle('sel', x.dataset.est===v));
+  }
+  document.querySelectorAll('#editEstRow .estBtn').forEach(b=>{
+    b.onclick = ()=> setEditEst(b.dataset.est);
+  });
+  document.querySelectorAll('#editPrioRow .prio').forEach(b=>{
+    b.onclick = ()=> setEditPrio(b.dataset.p);
+  });
+
+  renderSpace();
+</script>
+</body>
+</html>
