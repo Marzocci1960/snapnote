@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0e0d16">
 <title>SnapNote — Idea Capture Space</title>
 <style>
   :root {
@@ -1499,6 +1501,9 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
   });
 
   renderSpace();
+</script>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 </script>
 </body>
 </html>
