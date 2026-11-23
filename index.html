@@ -1048,7 +1048,7 @@ function loadCats(){
   // dragend) — leaving notes frozen in .dragging forever. The watchdog unsticks
   // them. The edge-scroller lets a held drag scroll the screen smoothly when the
   // finger/mouse parks near the top (sticky add-note bar) or bottom edge.
-  let lastDragY = null;
+ let lastDragY = null, lastDragX = null;
   let edgeScrolling = false;
 
   function dragScrollerFor(el){
@@ -1066,16 +1066,31 @@ function loadCats(){
     if(edgeScrolling) return;
     edgeScrolling = true;
     const scroller = dragScrollerFor(notesList);
-     const EDGE = 170, MAXSPD = 14; // px proximity band, px-per-frame at full depth
+    const EDGE = 170, XEDGE = 120, MAXSPD = 14; // vertical / horizontal proximity bands, px-per-frame at full depth
     (function step(){
       if(!edgeScrolling) return;
+
+
+
       const dragging = notesList.querySelector('.dragging');
       if(!dragging || lastDragY === null){ edgeScrolling = false; return; }
-      const H = window.innerHeight;
-      let dy = 0;
+
+
+
+
+           const H = window.innerHeight, W = window.innerWidth;
+      let dy = 0, dx = 0;
       if(lastDragY < EDGE)             dy = -Math.ceil((EDGE - lastDragY) / EDGE * MAXSPD);
       else if(lastDragY > H - EDGE)    dy =  Math.ceil((lastDragY - (H - EDGE)) / EDGE * MAXSPD);
+      if(lastDragX !== null){
+        if(lastDragX < XEDGE)          dx = -Math.ceil((XEDGE - lastDragX) / XEDGE * MAXSPD);
+        else if(lastDragX > W - XEDGE) dx =  Math.ceil((lastDragX - (W - XEDGE)) / XEDGE * MAXSPD);
+      }
       if(dy) scroller.scrollTop += dy;
+      if(dx) scroller.scrollLeft += dx;
+
+
+
       requestAnimationFrame(step);
     })();
   }
@@ -1117,7 +1132,7 @@ function loadCats(){
   }
   // document-level Y feed: fires over ANY element (add-note bar, headers, gaps),
   // keeping the edge-scroller supplied even outside the notes list
-  document.addEventListener('dragover', e=>{ lastDragY = e.clientY; startEdgeScroll(); });
+   document.addEventListener('dragover', e=>{ lastDragY = e.clientY; lastDragX = e.clientX; startEdgeScroll(); });
 
 
 
@@ -1176,8 +1191,8 @@ notesList.addEventListener('dragover', e=>{
 
 notesList.addEventListener('dragend', ()=>{
     stopEdgeScroll();
-    clearInterval(watchdogTimer);
-    lastDragY = null;
+   clearInterval(watchdogTimer);
+    lastDragY = null; lastDragX = null;
     const dragging = notesList.querySelector('.dragging');
     if(dragging){
       // zone-header/column drop pending? promote to that zone's front
