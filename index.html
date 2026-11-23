@@ -68,6 +68,13 @@
     font-size: 14px; font-weight: 700; cursor: pointer; transition: all .15s;
   }
   .colBtn.sel { border-color: var(--accent); background: rgba(109,74,255,.18); color: var(--text); }
+    .impBtn {
+    margin-left: 4px; padding: 7px 12px; border-radius: 9px;
+    border: 1px solid rgba(109,74,255,.55);
+    background: rgba(109,74,255,.15); color: var(--text);
+    font-size: 12px; font-weight: 700; cursor: pointer; user-select: none;
+  }
+  .impBtn.replace { background: rgba(255,77,94,.15); border-color: rgba(255,77,94,.55); color: var(--red); }
   #globalClose {
     margin-top: 8px; width: 100%; background: rgba(109,74,255,.15);
     color: var(--text); border: 1px solid rgba(109,74,255,.4);
@@ -1723,7 +1730,7 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
   importPicker.style.display = 'none';
   document.body.appendChild(importPicker);
 
-  let importArmed = false, importRaw = null, holdTimer = null, longPressed = false;
+  let importArmed = false, importRaw = null, holdTimer = null;
 
   function disarmImport(){
     importArmed = false; importRaw = null;
@@ -1746,24 +1753,23 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
       try { importRaw = JSON.parse(reader.result); }
       catch(e){ toast('Import failed — file unreadable'); return; }
       importArmed = true;
-      document.getElementById('importStatus').textContent = 'tap=merge · hold=replace';
+      const st = document.getElementById('importStatus');
+      st.innerHTML = '<button id="impMerge" class="impBtn">merge</button><button id="impReplace" class="impBtn replace">replace</button>';
+      document.getElementById('impMerge').onclick   = e=>{ e.stopPropagation(); runImport('merge'); };
+      document.getElementById('impReplace').onclick = e=>{ e.stopPropagation(); runImport('replace'); };
       document.getElementById('rowImport').classList.add('armed');
       toast('File loaded — tap row to merge, hold to replace');
     };
     reader.readAsText(file);
   });
   const rowImportEl = document.getElementById('rowImport');
-  rowImportEl.addEventListener('pointerdown', () => {
-    if(!importArmed) return;
-    longPressed = false;
-    holdTimer = setTimeout(()=>{ longPressed = true; runImport('replace'); }, 700);
-  });
+  // long-press retired — Android's text-selection gesture intercepts holds;
+  // explicit merge/replace buttons in the status pill now decide the mode
   ['pointerup','pointerleave','pointercancel'].forEach(ev =>
     rowImportEl.addEventListener(ev, ()=> clearTimeout(holdTimer)));
-  rowImportEl.addEventListener('click', () => {
-    if(longPressed){ longPressed = false; return; }   // the hold already acted
+   rowImportEl.addEventListener('click', () => {
     if(!importArmed){ importPicker.value = ''; importPicker.click(); return; }
-    runImport('merge');
+    // armed: taps on the row itself do nothing — the merge/replace buttons decide
   });
   document.getElementById('rowExport').onclick = exportBackup;
   renderSpace();
