@@ -988,7 +988,8 @@
     const noteEl = e.target.closest('.note');
     if(!noteEl){ e.preventDefault(); return; }
     noteEl.classList.add('dragging');
-    e.dataTransfer.setData('text/plain', ''); // Firefox requirement
+ e.dataTransfer.setData('text/plain', ''); // Firefox requirement
+    armWatchdog();   // arm stuck-drag detection (was defined but never called in build #1)
   });
 
 
