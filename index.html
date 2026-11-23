@@ -88,7 +88,7 @@
   /* ---------- CATEGORY SPACE (static) ---------- */
  #space {
     position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: safe center; justify-content: safe center;   /* "safe": fall back to start when centering would clip */
     transition: opacity .3s;
     overflow-y: auto; #space { overflow-y: auto; overflow-x: auto; };
     scrollbar-gutter: stable both-edges;   /* reserve scrollbar space symmetrically so centered content stays truly centered */
@@ -109,7 +109,7 @@
 
     gap: 46px 56px;
     padding: 150px 20px 120px;
-     margin: auto;   /* <-- keeps it centered when it fits, top-aligned when it overflows */
+    margin: 0;   /* centering now handled by #space's safe-center — auto margins reintroduce the clip bug */
   }
 
   .cat {
@@ -1589,6 +1589,27 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
     b.onclick = ()=> setEditPrio(b.dataset.p);
   });
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  renderSpace();
+</script>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
   renderSpace();
 </script>
 <script>
