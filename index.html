@@ -1038,10 +1038,30 @@
     delete dragging.dataset.pendingZone;
     notesList.querySelectorAll('.dropTarget').forEach(el=>el.classList.remove('dropTarget'));
   }
-  // finger/mouse lifted but dragend never came → grace period, then unstick
-  document.addEventListener('pointerup',     ()=>setTimeout(()=>{ stopEdgeScroll(); clearStuckDrag(); }, 250));
-  document.addEventListener('pointercancel', ()=>{ stopEdgeScroll(); setTimeout(clearStuckDrag, 50); });
 
+
+
+ // drag-loop watchdog: if dragstart fired but dragover never arrives within a
+  // beat, the drag loop is dead (old-Android style) — unstick the note.
+  // Pointer events are NOT used here: browsers cancel the pointer when a touch
+  // drag begins, so pointer listeners fire at the worst possible moment.
+  let dragLoopAlive = false, watchdogTimer = null;
+  function armWatchdog(){
+    dragLoopAlive = false;
+    clearInterval(watchdogTimer);
+    watchdogTimer = setInterval(()=>{
+      const dragging = notesList.querySelector('.dragging');
+      if(!dragging){ clearInterval(watchdogTimer); return; }
+      if(!dragLoopAlive){        // no dragover ever arrived → loop is dead
+        clearInterval(watchdogTimer);
+        stopEdgeScroll();
+        clearStuckDrag();
+      }
+    }, 300);
+  }
+  // document-level Y feed: fires over ANY element (add-note bar, headers, gaps),
+  // keeping the edge-scroller supplied even outside the notes list
+  document.addEventListener('dragover', e=>{ lastDragY = e.clientY; startEdgeScroll(); });
 
 
 
@@ -1049,8 +1069,14 @@
 
 notesList.addEventListener('dragover', e=>{
     e.preventDefault();
-    lastDragY = e.clientY;   // feed the edge auto-scroller
+
+
+
+     dragLoopAlive = true;    // dragover arrived → loop confirmed alive
+    lastDragY = e.clientY;
     startEdgeScroll();
+
+
     const dragging = notesList.querySelector('.dragging');
     if(!dragging) return;
     const dragNote = notes[+dragging.dataset.noteRef];
@@ -1094,6 +1120,7 @@ notesList.addEventListener('dragover', e=>{
 
 notesList.addEventListener('dragend', ()=>{
     stopEdgeScroll();
+    clearInterval(watchdogTimer);
     lastDragY = null;
     const dragging = notesList.querySelector('.dragging');
     if(dragging){
