@@ -344,7 +344,8 @@
   .settingRow.clickable:hover { background: rgba(255,255,255,.04); }
   .settingRow.clickable:hover .status { color: var(--text); }
   .settingRow.armed .status { background: rgba(255,77,94,.18); color: var(--red); }
-  .settingRow.armed:hover .status { color: var(--red); }
+    .settingRow.armed:hover .status { color: var(--red); }
+  #rowImport.armed .status { background: transparent; }   /* import buttons get no red wash — danger color lives on the replace button itself */
   .settingRow.on .status { background: rgba(109,74,255,.2); color: var(--accent); }
   #rowOutline.on .status { background: rgba(109,74,255,.2); color: var(--accent); }
   #closeSettings {
@@ -1549,7 +1550,8 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
 
 
       document.getElementById('viewLabel').textContent = `Inside: ${renameTarget.name}`;
-      toast('Category renamed ✓');
+           toast('Category renamed ✓');
+      closeNewCat();
     } else {
         CATS.push({ id:'cat'+Date.now(), name:nm, emoji: em, mts: Date.now() });
       saveCats(); closeNewCat(); renderSpace();
