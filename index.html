@@ -1046,18 +1046,24 @@
   // beat, the drag loop is dead (old-Android style) — unstick the note.
   // Pointer events are NOT used here: browsers cancel the pointer when a touch
   // drag begins, so pointer listeners fire at the worst possible moment.
-  let dragLoopAlive = false, watchdogTimer = null;
+
+
+
+  let dragLoopAlive = false, deadTicks = 0, watchdogTimer = null;
   function armWatchdog(){
-    dragLoopAlive = false;
+    dragLoopAlive = false; deadTicks = 0;
     clearInterval(watchdogTimer);
     watchdogTimer = setInterval(()=>{
       const dragging = notesList.querySelector('.dragging');
       if(!dragging){ clearInterval(watchdogTimer); return; }
-      if(!dragLoopAlive){        // no dragover ever arrived → loop is dead
-        clearInterval(watchdogTimer);
-        stopEdgeScroll();
-        clearStuckDrag();
-      }
+      if(!dragLoopAlive){        // no dragover since last tick
+        deadTicks++;
+        if(deadTicks >= 3){      // ~900ms total silence = loop truly dead
+          clearInterval(watchdogTimer);
+          stopEdgeScroll();
+          clearStuckDrag();
+        }
+      } else { deadTicks = 0; }  // any sign of life resets the clock
     }, 300);
   }
   // document-level Y feed: fires over ANY element (add-note bar, headers, gaps),
