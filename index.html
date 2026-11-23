@@ -69,12 +69,14 @@
   }
   .colBtn.sel { border-color: var(--accent); background: rgba(109,74,255,.18); color: var(--text); }
     .impBtn {
-    margin-left: 4px; padding: 7px 12px; border-radius: 9px;
-    border: 1px solid rgba(109,74,255,.55);
+    padding: 12px 20px; border-radius: 12px; min-height: 44px; box-sizing: border-box;
+    border: 1.5px solid rgba(109,74,255,.55);
     background: rgba(109,74,255,.15); color: var(--text);
-    font-size: 12px; font-weight: 700; cursor: pointer; user-select: none;
+    font-size: 15px; font-weight: 700; cursor: pointer; user-select: none;
   }
-  .impBtn.replace { background: rgba(255,77,94,.15); border-color: rgba(255,77,94,.55); color: var(--red); }
+    .impBtn.replace { background: rgba(255,77,94,.15); border-color: rgba(255,77,94,.55); color: var(--red); }
+  #importStatus { display: inline-flex; gap: 10px; align-items: center; }
+  .settingRow.armed .status { background: transparent; padding: 0; }   /* drop the pill chrome when buttons replace it */
   #globalClose {
     margin-top: 8px; width: 100%; background: rgba(109,74,255,.15);
     color: var(--text); border: 1px solid rgba(109,74,255,.4);
@@ -596,7 +598,7 @@
         <div class="label">Export backup</div>
         <div class="desc">Download all categories, notes & settings as JSON</div>
       </div>
-      <div class="status" id="exportStatus">download</div>
+     <div class="status" id="exportStatus">export</div>
     </div>
     <button id="globalClose">Close</button>
   </div>
@@ -613,7 +615,7 @@
 <div id="newCat">
   <div id="newCatBox">
     <h2 id="newCatTitle">New category</h2>
-    <input id="newCatName" placeholder="Category name" maxlength="24" autocomplete="off">
+    <input id="newCatName" placeholder="Category name" maxlength="60" autocomplete="off">
     <input id="newCatEmoji" placeholder="Emoji (optional, e.g. 🎸)" maxlength="4" autocomplete="off">
     <div class="newCatActions">
       <button id="newCatCancel">Cancel</button>
