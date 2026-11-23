@@ -1,23 +1,31 @@
-const CACHE_NAME = 'snapnote-v1';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png'];
+// SnapNote service worker — network-first (updates reach devices on refresh),
+// cache fallback (offline launch still works). Version bumps on each deploy
+// purge the old cache automatically.
+
+const CACHE_NAME = 'snapnote-v2';   // bump this (v3, v4...) if you ever want a forced cache purge
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
-  self.skipWaiting();
+  self.skipWaiting();   // new worker activates immediately, doesn't wait for old pages to close
 });
+
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())   // take control of open pages right away
   );
-  self.clientList.addedback && self.clients.claim();
 });
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then(c => c.put(e.request, copy));
-      return res;
-    }).catch(() => caches.match('./index.html')))
+    fetch(e.request)
+      .then(res => {
+        // network answered: serve it live AND refresh the cache copy
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(e.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html')))
   );
 });
