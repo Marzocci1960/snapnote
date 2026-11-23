@@ -1016,7 +1016,7 @@
     if(edgeScrolling) return;
     edgeScrolling = true;
     const scroller = dragScrollerFor(notesList);
-    const EDGE = 70, MAXSPD = 14; // px proximity band, px-per-frame at full depth
+     const EDGE = 170, MAXSPD = 14; // px proximity band, px-per-frame at full depth
     (function step(){
       if(!edgeScrolling) return;
       const dragging = notesList.querySelector('.dragging');
