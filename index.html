@@ -833,7 +833,7 @@ function loadCats(){
 
     if(!n || !row) return;
     row.className = 'note p-'+n.p;
-    el.innerHTML = `<div class="strip"></div><div class="txtWrap"><div class="txt">${n.txt}</div>
+    row.innerHTML = `<div class="strip"></div><div class="txtWrap"><div class="txt">${n.txt}</div>
   <div class="meta">${PRIOS[n.p].label} · ${relTime(n.ts)}</div></div>
   <button class="del" title="Delete">✕</button>`;
     row.querySelector('.del').onclick = ()=>{ notes.splice(notes.indexOf(n),1); saveNotes(); openCat(currentCat); renderSpace(); };
