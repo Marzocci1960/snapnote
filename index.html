@@ -265,7 +265,8 @@
   .note.p-r .strip { background: var(--red); box-shadow: 0 0 10px rgba(255,77,94,.6); }
   .note.p-y .strip { background: var(--yellow); box-shadow: 0 0 10px rgba(255,201,60,.5); }
   .note.p-g .strip { background: var(--green); box-shadow: 0 0 10px rgba(61,220,132,.5); }
-   .note .txt { font-size: 15px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .note .txtWrap { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .note .txt { font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
   .note .meta { font-size: 11px; color: var(--muted); }
   .note .del { background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:4px 6px; border-radius:6px; }
   .note .del:hover { color: var(--red); background: rgba(255,77,94,.1); }
@@ -832,9 +833,9 @@ function loadCats(){
 
     if(!n || !row) return;
     row.className = 'note p-'+n.p;
-    row.innerHTML = `<div class="strip"></div><div class="txt">${n.txt}</div>
-      <div class="meta">${PRIOS[n.p].label} · ${relTime(n.ts)}</div>
-      <button class="del" title="Delete">✕</button>`;
+    el.innerHTML = `<div class="strip"></div><div class="txtWrap"><div class="txt">${n.txt}</div>
+  <div class="meta">${PRIOS[n.p].label} · ${relTime(n.ts)}</div></div>
+  <button class="del" title="Delete">✕</button>`;
     row.querySelector('.del').onclick = ()=>{ notes.splice(notes.indexOf(n),1); saveNotes(); openCat(currentCat); renderSpace(); };
     row.onclick = (ev)=>{ if(ev.target.closest('.del')) return; openEdit(n); };
   }
@@ -1010,9 +1011,9 @@ function loadCats(){
         const el = document.createElement('div');
         el.className = 'note p-'+n.p;
         el.style.animationDelay = (seq++ * 0.05)+'s';
-        el.innerHTML = `<div class="strip"></div><div class="txt">${n.txt}</div>
-          <div class="meta">${PRIOS[n.p].label} · ${relTime(n.ts)}</div>
-          <button class="del" title="Delete">✕</button>`;
+        el.innerHTML = `<div class="strip"></div><div class="txtWrap"><div class="txt">${n.txt}</div>
+  <div class="meta">${PRIOS[n.p].label} · ${relTime(n.ts)}</div></div>
+  <button class="del" title="Delete">✕</button>`;
         el.querySelector('.del').onclick = ()=>{ notes.splice(notes.indexOf(n),1); saveNotes(); openCat(c); renderSpace(); };
         el.onclick = (ev)=>{ if(ev.target.closest('.del')) return; openEdit(n); };
         el.draggable = true;
