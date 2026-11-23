@@ -715,7 +715,18 @@
  let notes = [];
   const NOTES_KEY = 'snapnote_notes_v1';
 
-
+ // ---------- SCHEMA v3: unique note IDs ----------
+  let nidCounter = 0;
+  function makeNid(){
+    if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    // fallback for older WebViews without randomUUID
+    nidCounter++;
+    return 'n-' + Date.now() + '-' + nidCounter + '-' + Math.random().toString(36).slice(2, 10);
+  }
+  function findByNid(nid){
+    for(let i = 0; i < notes.length; i++) if(notes[i].nid === nid) return notes[i];
+    return null;
+  }
 
  function loadNotes(){
     const saved = localStorage.getItem(NOTES_KEY);
@@ -746,6 +757,10 @@
       if(!['r','y','g'].includes(n.p)) n.p = n.zone || 'g';
       delete n.t; // retired static tag
     });
+    // SCHEMA MIGRATION v3 — every note gets a permanent unique ID (nid).
+    // Identity is separate from position: idx says WHERE, nid says WHO.
+    // Idempotent like v2 — only fills gaps, never disturbs existing order.
+    notes.forEach(n=>{ if(!n.nid) n.nid = makeNid(); });
     saveNotes(); // persist migrated shapes immediately
   }
 
@@ -778,10 +793,14 @@
   function minIdx(cat, zone){ return notes.filter(n=>n.cat===cat && n.zone===zone).reduce((m,n)=>Math.min(m,n.idx), 0); }
   function maxIdx(cat, zone){ return notes.filter(n=>n.cat===cat && n.zone===zone).reduce((m,n)=>Math.max(m,n.idx), -1); }
    // surgical repainter — updates one note row's colors/text in place, no relayout blink
-  function repaintNote(ref){
-    const n = notes[ref];
-    const row = notesList.querySelector(`.note[data-note-ref="${ref}"]`);
-   
+
+
+
+
+   function repaintNote(nid){
+    const n = findByNid(nid);
+    const row = notesList.querySelector(`.note[data-nid="${nid}"]`);
+
     if(!n || !row) return;
     row.className = 'note p-'+n.p;
     row.innerHTML = `<div class="strip"></div><div class="txt">${n.txt}</div>
@@ -968,7 +987,7 @@
         el.querySelector('.del').onclick = ()=>{ notes.splice(notes.indexOf(n),1); saveNotes(); openCat(c); renderSpace(); };
         el.onclick = (ev)=>{ if(ev.target.closest('.del')) return; openEdit(n); };
         el.draggable = true;
-        el.dataset.noteRef = notes.indexOf(n);
+        el.dataset.nid = n.nid;   // v3: identity travels with the row, not its array position
         col.appendChild(el);
       });
       list.appendChild(col);
@@ -1086,7 +1105,7 @@ notesList.addEventListener('dragover', e=>{
 
     const dragging = notesList.querySelector('.dragging');
     if(!dragging) return;
-    const dragNote = notes[+dragging.dataset.noteRef];
+     const dragNote = findByNid(dragging.dataset.nid);
     if(!dragNote) return;
     // find zone context: dropped-on note's zone, or a hovered zone column/header
     const overNote = e.target.closest('.note');
@@ -1094,7 +1113,7 @@ notesList.addEventListener('dragover', e=>{
     const overHead = e.target.closest('.zoneHead');
     // PHASE 2: cross-zone drop — reprioritize in place, exactly where released
     if(overNote){
-      const overN = notes[+overNote.dataset.noteRef];
+        const overN = findByNid(overNote.dataset.nid);
       if(!overN) return;
       const sameZone = dragNote.zone === overN.zone;
       const r = overNote.getBoundingClientRect();
@@ -1136,7 +1155,7 @@ notesList.addEventListener('dragend', ()=>{
 
        if(dragging.dataset.pendingZone){
         const nz = dragging.dataset.pendingZone;
-        const n = notes[+dragging.dataset.noteRef];
+              const n = findByNid(dragging.dataset.nid);
         if(n && nz !== n.zone){
           n.zone = nz; n.p = nz;
           n.idx = minIdx(n.cat, nz) - 1;
@@ -1159,7 +1178,7 @@ notesList.addEventListener('dragend', ()=>{
     // Re-number EVERY zone from visible order (fractional/foreign placements normalize here)
     const seen = {};
     notesList.querySelectorAll('.note').forEach(row=>{
-      const ref = +row.dataset.noteRef, n = notes[ref];
+     const n = findByNid(row.dataset.nid);
       if(!n) return;
       const domZone = row.closest('.zoneCol');
       const z = domZone ? (domZone.classList.contains('z-r')?'r':domZone.classList.contains('z-y')?'y':'g') : n.zone;
@@ -1178,10 +1197,14 @@ notesList.addEventListener('dragend', ()=>{
       renderSpace(); // home-grid pills + glow reflect the reprioritized world
       if(zoneMoved){
       zoneMoved = false;
-        const movedRef = +dragging.dataset.noteRef;
+
+
+
+
+          const movedNid = dragging.dataset.nid;
 
       setTimeout(()=>{
-        repaintNote(movedRef);
+                repaintNote(movedNid);
         // refresh the detail-view pill counts too (strip + pills tell the same story)
         const c = currentCat;
         if(c){
@@ -1411,7 +1434,7 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
   saveBtn.onclick = ()=>{
     const txt = input.value.trim();
     if(!txt){ input.focus(); return; }
-     notes.push({ cat:selCat, p:selPrio, txt, zone:selPrio, idx:minIdx(selCat,selPrio)-1, est:selEst, ts:Date.now() });
+      notes.push({ nid:makeNid(), cat:selCat, p:selPrio, txt, zone:selPrio, idx:minIdx(selCat,selPrio)-1, est:selEst, ts:Date.now() });
     saveNotes();
     closeCap(); renderSpace();
     toast(`Saved to ${CATS.find(c=>c.id===selCat).name} ✓`);
