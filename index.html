@@ -717,9 +717,14 @@
     { id:'proj',  name:'Projects',        emoji:'🛠️' },
   ];
   const CATS_KEY = 'snapnote_cats_v1';
-  function loadCats(){
+function loadCats(){
     const saved = localStorage.getItem(CATS_KEY);
     if(saved){ try { CATS = JSON.parse(saved); } catch(e){} }
+    // SCHEMA MIGRATION v4 — categories get a modified timestamp (mts) so
+    // two-way merge can referee renames: newest mts wins. Idempotent.
+    let changed = false;
+    CATS.forEach(c=>{ if(typeof c.mts !== 'number'){ c.mts = Date.now(); changed = true; } });
+    if(changed) saveCats();
   }
   function saveCats(){
     localStorage.setItem(CATS_KEY, JSON.stringify(CATS));
@@ -1279,6 +1284,7 @@ notesList.addEventListener('dragend', ()=>{
   document.getElementById('rowOutline').onclick = ()=>{
     if(!currentCat) return;
     currentCat.outline = !currentCat.outline;
+    currentCat.mts = Date.now();   // v4: outline toggle counts as a modification
     saveCats();
     const card = grid.querySelector(`[data-cat-id="${currentCat.id}"]`);
     if(card) card.classList.toggle('outlined', currentCat.outline);
@@ -1519,11 +1525,8 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
       renameTarget.name = nm;
 
 
-       renameTarget.emoji = em;
-
-
-
-      saveCats(); closeNewCat(); renderSpace();
+         renameTarget.emoji = em;
+      renameTarget.mts = Date.now();   // v4: rename counts as a modification
 
 
 
@@ -1539,7 +1542,7 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
       document.getElementById('viewLabel').textContent = `Inside: ${renameTarget.name}`;
       toast('Category renamed ✓');
     } else {
-      CATS.push({ id:'cat'+Date.now(), name:nm, emoji: em, });
+        CATS.push({ id:'cat'+Date.now(), name:nm, emoji: em, mts: Date.now() });
       saveCats(); closeNewCat(); renderSpace();
       toast(`Category "${nm}" created ✓`);
     }
@@ -1663,7 +1666,8 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
       id: sanitizeStr(c && c.id, 40) || ('cat' + Date.now() + '-' + Math.random().toString(36).slice(2)),
       name: sanitizeStr(c && c.name, 60),
       emoji: (c && typeof c.emoji === 'string') ? c.emoji.slice(0, 8) : undefined,
-      outline: (c && c.outline === true) ? true : undefined
+      outline: (c && c.outline === true) ? true : undefined,
+      mts: (c && typeof c.mts === 'number') ? c.mts : 0
     })).filter(c => c.name);
     const inNotes = raw.notes.map(n => {
       if(!n || typeof n !== 'object') return null;
@@ -1691,7 +1695,18 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
     } else {
       // MERGE — union: cats by id, notes by nid; conflicts keep the newer ts
       const catById = {}; CATS.forEach(c => catById[c.id] = c);
-      inCats.forEach(c => { if(!catById[c.id]){ CATS.push(c); catById[c.id] = c; } });
+      inCats.forEach(c => {
+        const local = catById[c.id];
+        if(!local){ CATS.push(c); catById[c.id] = c; }
+        else if((c.mts || 0) > (local.mts || 0)){
+          // v4 two-way: whoever edited this cat most recently wins —
+          // rename/emoji/outline flow from whichever device made the change
+          local.name = c.name;
+          if(typeof c.emoji === 'string') local.emoji = c.emoji; else delete local.emoji;
+          if(c.outline === true) local.outline = true; else delete local.outline;
+          local.mts = c.mts;
+        }
+      });
       const byNid = {}; notes.forEach(n => byNid[n.nid] = n);
       inNotes.forEach(n => {
         const local = byNid[n.nid];
@@ -1723,7 +1738,6 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
       toast(mode === 'replace' ? 'Backup imported — replaced ✓' : 'Backup merged ✓');
     } else { disarmImport(); }
   }
-
   importPicker.addEventListener('change', () => {
     const file = importPicker.files[0];
     if(!file) return;
@@ -1738,7 +1752,6 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
     };
     reader.readAsText(file);
   });
-
   const rowImportEl = document.getElementById('rowImport');
   rowImportEl.addEventListener('pointerdown', () => {
     if(!importArmed) return;
@@ -1752,11 +1765,7 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
     if(!importArmed){ importPicker.value = ''; importPicker.click(); return; }
     runImport('merge');
   });
-
   document.getElementById('rowExport').onclick = exportBackup;
-
-
-
   renderSpace();
 </script>
 <script>
