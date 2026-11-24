@@ -602,6 +602,13 @@
       </div>
      <div class="status" id="exportStatus">export</div>
     </div>
+        <div class="settingRow clickable" id="rowShare">
+      <div>
+        <div class="label">Share backup</div>
+        <div class="desc">Send the backup file to another app (e.g. Proton Drive)</div>
+      </div>
+      <div class="status" id="shareStatus">share</div>
+    </div>
     <button id="globalClose">Close</button>
   </div>
 </div>
@@ -1795,6 +1802,23 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
     // armed: taps on the row itself do nothing — the merge/replace buttons decide
   });
   document.getElementById('rowExport').onclick = exportBackup;
+    // share the same payload through the native share sheet (Android/iOS/Windows),
+  // so it can land directly in apps like Proton Drive instead of Downloads
+  function shareBackup(){
+    if(!(navigator.canShare && navigator.canShare({files:[new File([], 'x.json', {type:'application/json'})]}))){
+      toast('Sharing not supported here — downloading instead');
+      exportBackup();
+      return;
+    }
+    const payload = { schema: 3, exportedAt: new Date().toISOString(),
+                      cats: CATS, notes: notes, settings: settings };
+    const fname = 'snapnote-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    const file = new File([JSON.stringify(payload, null, 2)], fname, { type: 'application/json' });
+    navigator.share({ files: [file], title: 'SnapNote backup' })
+      .then(()=> toast('Backup shared ✓'))
+      .catch(err=>{ if(err && err.name !== 'AbortError') toast('Share failed — downloading instead'), exportBackup(); });
+  }
+  document.getElementById('rowShare').onclick = shareBackup;
   renderSpace();
 </script>
 <script>
