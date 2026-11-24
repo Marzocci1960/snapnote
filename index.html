@@ -1813,7 +1813,7 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
     const payload = { schema: 3, exportedAt: new Date().toISOString(),
                       cats: CATS, notes: notes, settings: settings };
     const fname = 'snapnote-backup-' + new Date().toISOString().slice(0,10) + '.json';
-    const file = new File([JSON.stringify(payload, null, 2)], fname, { type: 'application/json' });
+    const file = new File([JSON.stringify(payload, null, 2)], fname.replace('.json', '.txt'), { type: 'text/plain' });
     navigator.share({ files: [file], title: 'SnapNote backup' })
       .then(()=> toast('Backup shared ✓'))
       .catch(err=>{ if(err && err.name !== 'AbortError') toast('Share failed — downloading instead'), exportBackup(); });
