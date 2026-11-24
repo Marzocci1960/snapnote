@@ -1778,8 +1778,14 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
   importPicker.addEventListener('change', () => {
     const file = importPicker.files[0];
     if(!file) return;
-    const reader = new FileReader();
+
+     const reader = new FileReader();
+    reader.onerror = ()=> toast('Could not read that file — is it available offline?');
     reader.onload = () => {
+      if(!reader.result || !reader.result.length){ toast('File arrived empty — try "Make available offline" in Drive'); return; }
+
+
+
       try { importRaw = JSON.parse(reader.result); }
       catch(e){ toast('Import failed — file unreadable'); return; }
       importArmed = true;
