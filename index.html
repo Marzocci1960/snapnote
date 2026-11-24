@@ -1776,6 +1776,13 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
     } else { disarmImport(); }
   }
   importPicker.addEventListener('change', () => {
+
+
+    const f0 = importPicker.files[0];
+    toast(f0 ? ('picked: ' + f0.name + ' · ' + f0.size + ' bytes') : 'no file received');
+
+
+    
     const file = importPicker.files[0];
     if(!file) return;
 
