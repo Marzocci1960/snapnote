@@ -1777,24 +1777,26 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
   }
   importPicker.addEventListener('change', () => {
 
-
+    const readDeadline = setTimeout(()=>{ if(!reader.result) toast('READ STALLED — Drive never delivered the bytes'); }, 4000);
     const f0 = importPicker.files[0];
     toast(f0 ? ('picked: ' + f0.name + ' · ' + f0.size + ' bytes') : 'no file received');
 
 
-    
+
     const file = importPicker.files[0];
     if(!file) return;
 
      const reader = new FileReader();
     reader.onerror = ()=> toast('Could not read that file — is it available offline?');
     reader.onload = () => {
+            clearTimeout(readDeadline);
+      toast('read ok · ' + (reader.result ? reader.result.length : 0) + ' chars');
       if(!reader.result || !reader.result.length){ toast('File arrived empty — try "Make available offline" in Drive'); return; }
 
 
 
       try { importRaw = JSON.parse(reader.result); }
-      catch(e){ toast('Import failed — file unreadable'); return; }
+            catch(e){ toast('PARSE FAILED: ' + (e && e.message ? e.message : 'unknown')); return; }
       importArmed = true;
       const st = document.getElementById('importStatus');
       st.innerHTML = '<button id="impMerge" class="impBtn">merge</button><button id="impReplace" class="impBtn replace">replace</button>';
