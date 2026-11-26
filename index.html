@@ -1184,8 +1184,12 @@ notesList.addEventListener('dragover', e=>{
       }
       return;
     }
-    if(overCol){
-        const colEl = overCol;
+
+
+       if(overCol){
+      const colEl = overCol;
+      // Build A: only one lane wears the dashed highlight at a time
+      notesList.querySelectorAll('.dropTarget').forEach(el=>{ if(el!==colEl) el.classList.remove('dropTarget'); });
       let z = null;
       if(colEl.classList.contains('z-r')) z = 'r';
       if(colEl.classList.contains('z-y')) z = 'y';
@@ -1193,7 +1197,19 @@ notesList.addEventListener('dragover', e=>{
       if(z && z !== dragNote.zone){
         colEl.classList.add('dropTarget');
         dragging.dataset.pendingZone = z; // remembered for drop, applied on dragend
+      } else if(z){
+        // Build A: same-lane open pad below the last note → glide to the tail
+        const lane = colEl.querySelectorAll('.note');
+        const lastNote = lane[lane.length-1];
+        if(lastNote && lastNote !== dragging && e.clientY > lastNote.getBoundingClientRect().bottom){
+          colEl.insertBefore(dragging, lastNote.nextElementSibling);
+        }
       }
+    }
+
+
+
+
     }
   });
 
@@ -1735,20 +1751,46 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
         applyLayout();
       }
     } else {
-      // MERGE — union: cats by id, notes by nid; conflicts keep the newer ts
-      const catById = {}; CATS.forEach(c => catById[c.id] = c);
+
+
+
+           // MERGE — Build B ruling: category identity = exact name + exact emoji.
+      // Exact match → incoming notes merge inside the existing category.
+      // ANY difference (one letter, changed emoji) → standalone new category,
+      // fresh id so the old-named category and its notes are never touched.
+      const idRemap = {};        // incoming cat id → local cat id it lands in
+      const freshSigs = {};      // dedupe guard if the backup itself holds twins
       inCats.forEach(c => {
-        const local = catById[c.id];
-        if(!local){ CATS.push(c); catById[c.id] = c; }
-        else if((c.mts || 0) > (local.mts || 0)){
-          // v4 two-way: whoever edited this cat most recently wins —
-          // rename/emoji/outline flow from whichever device made the change
-          local.name = c.name;
-          if(typeof c.emoji === 'string') local.emoji = c.emoji; else delete local.emoji;
-          if(c.outline === true) local.outline = true; else delete local.outline;
-          local.mts = c.mts;
+        const sig = c.name + '\u0000' + (c.emoji || '');
+        const local = CATS.find(l => l.name === c.name && (l.emoji || '') === (c.emoji || ''));
+        if(local){
+          idRemap[c.id] = local.id;
+          // name+emoji already identical — the only metadata left to flow is outline
+          if((c.mts || 0) > (local.mts || 0)){
+            if(c.outline === true) local.outline = true; else delete local.outline;
+            local.mts = c.mts;
+          }
+        } else if(freshSigs[sig]){
+          idRemap[c.id] = freshSigs[sig];
+        } else {
+          const fresh = 'cat' + Date.now() + '-' + Math.random().toString(36).slice(2);
+          CATS.push({ id: fresh, name: c.name, emoji: c.emoji, outline: c.outline, mts: c.mts || 0 });
+          idRemap[c.id] = fresh;
+          freshSigs[sig] = fresh;
         }
       });
+      const byNid = {}; notes.forEach(n => byNid[n.nid] = n);
+      inNotes.forEach(n => {
+        if(idRemap[n.cat]) n.cat = idRemap[n.cat]; // membership follows the incoming structure
+        const local = byNid[n.nid];
+        if(!local){ notes.push(n); byNid[n.nid] = n; }
+        else if((n.ts || 0) > (local.ts || 0)){ Object.assign(local, n); } // newest wins — and moves
+      });
+
+
+
+
+
       const byNid = {}; notes.forEach(n => byNid[n.nid] = n);
       inNotes.forEach(n => {
         const local = byNid[n.nid];
@@ -1765,7 +1807,7 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
   importPicker.style.display = 'none';
   document.body.appendChild(importPicker);
 
-  let importArmed = false, importRaw = null, holdTimer = null;
+  let importArmed = false, importRaw = null;
 
   function disarmImport(){
     importArmed = false; importRaw = null;
@@ -1815,8 +1857,7 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
   const rowImportEl = document.getElementById('rowImport');
   // long-press retired — Android's text-selection gesture intercepts holds;
   // explicit merge/replace buttons in the status pill now decide the mode
-  ['pointerup','pointerleave','pointercancel'].forEach(ev =>
-    rowImportEl.addEventListener(ev, ()=> clearTimeout(holdTimer)));
+  
    rowImportEl.addEventListener('click', () => {
     if(!importArmed){ importPicker.value = ''; importPicker.click(); return; }
     // armed: taps on the row itself do nothing — the merge/replace buttons decide
