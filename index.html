@@ -294,6 +294,11 @@
 
 
      .zoneCol.dropTarget, .zoneHead.dropTarget { outline: 2px dashed rgba(109,74,255,.5); outline-offset: 6px; border-radius: 12px; }
+    /* Build A: fat bottom drop zones — guaranteed droppable real estate below the
+     last note; empty lanes stay targetable. 88px = the fat bottom pad. */
+  #notesList.lanes .zoneCol { min-height: 240px; padding-bottom: 88px; }
+  #notesList:not(.lanes) .zoneCol { padding-bottom: 44px; }
+  .zoneCol .zonePad { height: 0; }
   .note.overBottom, .note.overTop { border-style: dashed; border-color: rgba(109,74,255,.8); }
   
   .zoneHead .zcount { font-size: 11px; letter-spacing: 0; font-weight: 600; }
