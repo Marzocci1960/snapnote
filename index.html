@@ -1206,11 +1206,6 @@ notesList.addEventListener('dragover', e=>{
         }
       }
     }
-
-
-
-
-    
   });
 
 
@@ -1785,17 +1780,6 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
         const local = byNid[n.nid];
         if(!local){ notes.push(n); byNid[n.nid] = n; }
         else if((n.ts || 0) > (local.ts || 0)){ Object.assign(local, n); } // newest wins — and moves
-      });
-
-
-
-
-
-      const byNid = {}; notes.forEach(n => byNid[n.nid] = n);
-      inNotes.forEach(n => {
-        const local = byNid[n.nid];
-        if(!local){ notes.push(n); byNid[n.nid] = n; }
-        else if((n.ts || 0) > (local.ts || 0)){ Object.assign(local, n); }
       });
     }
     saveCats(); saveNotes();
