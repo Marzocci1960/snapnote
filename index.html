@@ -109,7 +109,9 @@
 
  #grid {
     display: grid;
-    grid-template-columns: repeat(var(--cols, 3), 300px);
+     /* Stage A: fluid auto-fit. --gridCols unset (Auto) → browser counts columns
+       honestly via minmax; set to repeat(N, 1fr) → manual override wins. */
+    grid-template-columns: var(--gridCols, repeat(auto-fill, minmax(280px, 1fr)));
 
 
 
@@ -123,7 +125,9 @@
 
   .cat {
     position: relative;
-    width: 300px; height: 190px;
+    width: 100%;
+    aspect-ratio: 300 / 190;
+    overflow: hidden;
     background: linear-gradient(160deg, var(--panel2), var(--panel));
     border: 1px solid rgba(255,255,255,.08);
     border-radius: 18px;
@@ -711,11 +715,18 @@
 // ---------- SETTINGS ----------
   const SETTINGS_KEY = 'snapnote_settings_v1';
   let settings = { cols: 3, shortcuts: false, layout: 'auto' };
+    function applyColsVar(){
+    // Stage A: 'auto' clears the override → grid falls back to fluid auto-fill;
+    // a number (1-5) forces that many columns via --gridCols.
+    const root = document.documentElement;
+    if(settings.cols === 'auto') root.style.removeProperty('--gridCols');
+    else root.style.setProperty('--gridCols', 'repeat(' + settings.cols + ', 1fr)');
+  }
   function loadSettings(){
     const s = localStorage.getItem(SETTINGS_KEY);
     if(s){ try {  settings =Object.assign({ cols: 3, shortcuts: false, layout: 'auto' }, JSON.parse(s)); } catch(e){} }
-    if(typeof settings.cols !== 'number' || settings.cols < 1 || settings.cols > 5) settings.cols = 3;
-    document.documentElement.style.setProperty('--cols', settings.cols);
+   if(settings.cols !== 'auto' && (typeof settings.cols !== 'number' || settings.cols < 1 || settings.cols > 5)) settings.cols = 3;
+    applyColsVar();
   }
   function saveSettings(){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
    
@@ -1389,7 +1400,7 @@ notesList.addEventListener('dragend', ()=>{
  // ---------- GLOBAL SETTINGS ----------
   const globalEl = document.getElementById('globalSettings');
   document.getElementById('globalSettingsBtn').onclick = ()=>{
-     document.querySelectorAll('.colBtn[data-cols]').forEach(b=>b.classList.toggle('sel', +b.dataset.cols === settings.cols));
+     document.querySelectorAll('.colBtn[data-cols]').forEach(b=>b.classList.toggle('sel', b.dataset.cols === String(settings.cols)));
     document.getElementById('shortcutsStatus').textContent = settings.shortcuts ? 'ON' : 'OFF';
     document.getElementById('rowShortcuts').classList.toggle('on', settings.shortcuts);
       document.querySelectorAll('#layoutRow .colBtn').forEach(b=>b.classList.toggle('sel', b.dataset.layout===(settings.layout||'auto')));
@@ -1420,19 +1431,24 @@ notesList.addEventListener('dragend', ()=>{
     document.getElementById('rowShortcuts').classList.toggle('on', settings.shortcuts);
     toast(settings.shortcuts ? 'Shortcuts on ✓' : 'Shortcuts off');
   };
+   // Stage A: inject the Auto button ahead of the 1-5 buttons
+  const autoBtn = document.createElement('button');
+  autoBtn.className = 'colBtn'; autoBtn.dataset.cols = 'auto'; autoBtn.textContent = 'Auto';
+  const firstColsBtn = document.querySelector('.colBtn[data-cols]');
+  if(firstColsBtn) firstColsBtn.before(autoBtn);
    document.querySelectorAll('.colBtn[data-cols]').forEach(b=>{
     b.onclick = ()=>{
-      settings.cols = +b.dataset.cols;
+           settings.cols = (b.dataset.cols === 'auto') ? 'auto' : +b.dataset.cols;
       saveSettings();
 
 
-if(typeof settings.cols !== 'number' || settings.cols < 1 || settings.cols > 5) settings.cols = 3;
-      document.documentElement.style.setProperty('--cols', settings.cols);
+if(settings.cols !== 'auto' && (typeof settings.cols !== 'number' || settings.cols < 1 || settings.cols > 5)) settings.cols = 3;
+     applyColsVar();
 
 
 
       document.querySelectorAll('.colBtn').forEach(x=>x.classList.toggle('sel', x===b));
-      toast(`${settings.cols} column${settings.cols>1?'s':''} ✓`);
+            toast(settings.cols === 'auto' ? 'Columns: auto-fit ✓' : `${settings.cols} column${settings.cols>1?'s':''} ✓`);
     };
   });
 
@@ -1740,9 +1756,9 @@ document.querySelectorAll('#estRow .estBtn').forEach(b=>{
       CATS = inCats; notes = inNotes;
       if(raw.settings && typeof raw.settings === 'object'){
         settings = Object.assign({ cols: 3, shortcuts: false, layout: 'auto' }, raw.settings);
-        if(typeof settings.cols !== 'number' || settings.cols < 1 || settings.cols > 5) settings.cols = 3;
+       if(settings.cols !== 'auto' && (typeof settings.cols !== 'number' || settings.cols < 1 || settings.cols > 5)) settings.cols = 3;
         saveSettings();
-        document.documentElement.style.setProperty('--cols', settings.cols);
+        applyColsVar();
         applyLayout();
       }
     } else {
